@@ -225,7 +225,7 @@ plotQuantileKendall <- function(eList, startDate = NA, endDate = NA,
   axis(3,at=zvals,labels=FALSE, las = 1, tck=0.02)
   axis(4,at=yticks,labels = FALSE, tick = TRUE, tck = 0.02)
   abline(h=0,col="blue")
-  legend(legendLocation,c("> 0.1","0.05 - 0.1","< 0.05"),col = c("snow3",                                            "black","red"),pch = 20, title = "p-value",
+  legend(legendLocation,bg="transparent",c("> 0.1","0.05 - 0.1","< 0.05"),col = c("snow3",                                            "black","red"),pch = 20, title = "p-value",
          pt.cex=1.0, cex = legendSize * 1.5)
   return(results)
 }    
@@ -599,11 +599,9 @@ plot15cfs <- function (eList, yearStart, yearEnd)
 
 ```
 
-## 1.3 Set up GRYN Site Matrix for Ease of Re-using this .Rmd
+## 1.3 Set up Filepaths
 
-Now let's get ready to make an EGRET object. For ease of quickly reusing this Rmd for different sites, a matrix of the GRYN sites has been created. The final chunk indexes the matrix by the site abbreviation entered in the first code chunk above and saves the corresponding info for setting up the EGRET object. No start/end dates are provided in the matrix because EGRET automatically will add start/end dates from the record the stream gage discharge data if none are provided. This will keep the data as current as possible each time the code is run.
-
-*OPTIONAL*: As stated above, other non-GRYN sites could easily be manually added to the AddedSites matrix below the last entry.
+Now let's get ready to make an EGRET object. 
 
 ```{r SiteID, include=FALSE}
 filePath <- file.path("EGRETdaily_future_runoff", ID)
@@ -644,6 +642,7 @@ knitr::kable(flow_percentiles, format ="html", booktabs=TRUE, longtable = TRUE, 
 ## 2.2 Historical Flow Hydrograph
 
 The below hydrograph displays the current year vs. the mean, 25th, and 75th percentiles from the entire record.
+
 
 ```{r Historical-Hydrograph, echo=FALSE, message=FALSE, warning=FALSE}
 Daily$Year <- trunc(Daily$DecYear)
@@ -782,7 +781,22 @@ The next four plots show the remaining flow statistic trend lines: minimum day, 
 plotFourAny(eList, 1, 3, 6, 7, qUnit = 1) # modified function to plot the rest of the istats options
 ```
 
-## 3.3 Standard Deviation Plot of the Daily Mean (Log)
+## 3.3 Flow Statistics with Mann-Kendall Test
+
+The code for this is sourced in the flowTrends.R file in Section 1.1 and was copied from the EGRET page on USGS via [this site](https://rconnect.usgs.gov/EGRET/articles/streamflow_trend.html#making-a-graph-of-the-trend-in-a-single-flow-statistic) (Hirsch, R.M., 2018 (updated 2023), Daily Streamflow Trend Analysis).
+
+These graphs use the same smoothing method as the plots described in section 2 for the same discharge statistics, but the smoothing window is 30 years (rather than 20 years as in the functions from Section 3.2). Therefore, for short time periods (\~30 years) a lot of the trend lines will look like straight lines or very smooth curves. The plot also gives a trend slope (calculated by Theil-Sen Estimator, linear for univariate time-series) in % per year with a p-value estimate based on Mann-Kendall, adjusted for year to year serial correlation (common in time-series).
+
+```{r Mann-Kendall-1, echo=FALSE}
+plotFourTrendGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
+```
+
+```{r Mann-Kendall-2, echo=FALSE}
+plotRemainingiStatGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
+```
+
+
+## 3.4 Standard Deviation Plot of the Daily Mean (Log)
 
 This plot helps to assess the variability of the data set over time (Hirsch & De Cicco, 2015). It takes the standard deviation of the log of the annual mean daily discharge (Q), resulting in a dimensionless statistic. This is useful information for observing potential trends in variability over time. For example, if the result of plotting the standard deviation over time is an upward trending curve, this suggests that there is more change in the high or low end of the distribution than the middle. The results may inform whether changing conditions are changing flow variability, such as more extreme precipitation events combined with more periods of prolonged heat/drought from a changing climate. The default window is 15 years.
 
@@ -797,7 +811,7 @@ if (endDec - 15 < startDec) {
 plotSDLogQ(eList, window = window)
 ```
 
-## 3.4 Seasonal Plots
+## 3.5 Seasonal Plots
 
 These figures divide the data into the four seasons, and then visualize the lowess for each one separately for 7-day minimum, Mean, and 1-day maximum. There are a lot plots, but these can help diagnose if there are seasonal trends in any of the discharge statistics that are not apparent in the annual plots (Hirsch & De Cicco, 2015). If any show trends of note, further analyses can be conducted on the particular season of interest.
 
@@ -811,21 +825,7 @@ plot15cfs(eList, yearStart, yearEnd)
 
 \newpage
 
-## 3.5 Flow Statistics with Mann-Kendall Test
-
-The code for this is sourced in the flowTrends.R file in Section 1.1 and was copied from the EGRET page on USGS via [this site](https://rconnect.usgs.gov/EGRET/articles/streamflow_trend.html#making-a-graph-of-the-trend-in-a-single-flow-statistic) (Hirsch, R.M., 2018 (updated 2023), Daily Streamflow Trend Analysis).
-
-These graphs use the same smoothing method as the plots described in section 2 for the same discharge statistics, but the smoothing window is 30 years (rather than 20 years as in the functions from Section 3.2). Therefore, for short time periods (\~30 years) a lot of the trend lines will look like straight lines or very smooth curves. The plot also gives a trend slope (calculated by Theil-Sen Estimator, linear for univariate time-series) in % per year with a p-value estimate based on Mann-Kendall, adjusted for year to year serial correlation (common in time-series).
-
-```{r Mann-Kendall-1, echo=FALSE}
-plotFourTrendGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
-```
-
-```{r Mann-Kendall-2, echo=FALSE}
-plotRemainingiStatGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
-```
-
-## 3.6 Mann-Kendall results
+## 3.6 Quantile-Kendall results
 
 The following graph is a Quantile-Kendall plot. This graph visualizes both the trend slope AND the p-value for each flow quantile (ranging from the annual minimum and all the way to the annual maximum). Therefore, it shows the slope and p-value for a range of percentiles (from minimum to maximum, a total of 365 order statistics, i.e. 365 points on the plot), in one figure. The y-axis provides the trend estimate (the percent change positive or negative per year) and the color of each point gives the Mann-Kendall p-value.
 
@@ -879,7 +879,7 @@ Next, the same type of plot is shown, but only with discharge values above the 9
 *OPTIONAL*: If there are other lower bounds you are interested in, the value of qLower can be adjusted.
 
 ```{r QDaily95thP, echo=FALSE}
-plotQTimeDaily(eList, lwd = 1, qLower = round(flow_percentiles[8], digits = 3), yearEnd = max(Daily$DecYear))
+plotQTimeDaily(eList, lwd = 1, qLower = flow_percentiles[8], yearEnd = max(Daily$DecYear))
 ```
 
 # 5. Peak Flow Plots
@@ -999,18 +999,25 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
          cex = 1.4, xlab = Xlab, ylab = Ylab, xlim = xlim, ylim = ylim, cex.axis = 1.2, cex.lab = 1.2)
     abline(int, medslop, lwd = 2)
     abline(lm(y~x), lty = 3, lwd = 2)
-    legend(x = legend_loc, legend=c("Theil-Sen", "Ordinary Least Squares"), lty=c(1,2), cex=0.8)
+    legend(x = legend_loc, bg="transparent", legend=c("Theil-Sen", "Ordinary Least Squares"), lty=c(1,2), cex=0.8)
     return(corout1)
   }
 }
 ```
 
-```{r PeakFlow, echo=FALSE}
-peakFlow <- Daily %>%
-  group_by(Year) %>%
-  filter(cfs == max(cfs))
-peakFlow <- peakFlow %>% dplyr::filter(!is.na(Date))
-theil_sen <- senth(peakFlow$Year, peakFlow$Day, site = site, Xlab = "Year", Ylab = "Days Since January 1st", legend_loc = "topright")
+```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
+wtr_yr <- function(dates, start_month=10) {
+  dates.posix = as.POSIXlt(dates)
+  offset = ifelse(dates.posix$mon >= start_month - 1, 1, 0)
+  adj.year = dates.posix$year + 1900 + offset
+  adj.year
+}
+peakFlow <- readNWISpeak(siteID, startDate=startDate, endDate=endDate)
+peakFlow <- peakFlow %>% drop_na(peak_dt)
+peakFlow$Day <- as.numeric(format(peakFlow$peak_dt, "%j"))
+peakFlow$WaterYear <- wtr_yr(peakFlow$peak_dt)
+peakFlow$Year <- as.numeric(format(peakFlow$peak_dt, "%Y"))
+theil_sen <- senth(peakFlow$WaterYear, peakFlow$Day, site = site, Xlab = "Year", Ylab = "Days Since January 1st", legend_loc = "topright")
 ```
 
 ```{r Senth-Statistics, echo=FALSE}
@@ -1155,11 +1162,13 @@ summary(lm(Daily$cfs~Daily$Date))
 
 ## 7.3 Saving Data from this Rmd as CSVs
 ```{r save-csvs, include=FALSE}
-write.csv(Daily, file = file.path(filePath, "daily_output.csv"))
-#Info
-#write.csv(INFO, file = paste0(path, "/", site, "Info.csv"))
-#Peak Flow
-write.csv(peakFlow, file = file.path(filePath, "DatePeakFlow.csv"))
+# path <- file.path("C:/Users/avolk/Code_Output", site)
+# #Daily
+# write.csv(Daily, file = paste0(path, "/", site, "Daily.csv"))
+# #Info
+# write.csv(INFO, file = paste0(path, "/", site, "Info.csv"))
+# #Peak Flow
+# write.csv(peakFlow, file = paste0(path, "/", site, "PeakFlow.csv"))
 ```
 
 ------------------------------------------------------------------------
@@ -1173,7 +1182,7 @@ knitr::purl(rmd_file)
 ```
 
 ---
-title: "`r ID`"
+title: "`r paste0(SpecificGageInfo$siteName)`"
 subtitle: "Longterm Flow Analysis, updated 2023-08-22"
 author: "Abby Volk, Ally Mars, Andy Ray, Jana Cram, Ben LaFrance"
 date: "`r Sys.Date()`"
