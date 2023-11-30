@@ -30,8 +30,11 @@ for (i in models){
 
 # empty df to store model results ---------------------------------------------
 
-projection_results <- data.frame(models = models,
-                                  = NA,
+projection_results <- data.frame(models = character(),
+                                 discharge_stat = character(),
+                                 slope = numeric(),
+                                 slope_pct = numeric(),
+                                 p_value = numeric(),
                   stringsAsFactors=FALSE)
 
 # projection_results[projection_results$models == i,]
