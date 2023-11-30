@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.Rdata
+.Rprofile
+.httr-oauth
+.DS_Store
+.quarto
+*.csv
+*.xlsm
+EGRETdaily_future_runoff
