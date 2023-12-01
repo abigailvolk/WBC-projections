@@ -159,6 +159,8 @@ plotFlowTrend <- function (eList, istat, startDate = NA, endDate = NA,
                       tinyPlot = tinyPlot, lwd = lwd, col = col, ...)
   lines(localSeries$years, localSeries$qSmooth, lwd = lwd, 
         col = col)
+slope_pval <- list(slope = slope, slope_pct = slopePct, p_value = pValue)
+return(slope_pval)
 }
 
 #########################################################################################

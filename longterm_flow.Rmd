@@ -37,7 +37,7 @@ In this case, writing a simple external loop through IDs that match the SiteIDs 
 
 ```{r example-loop, eval=FALSE}
 for (i in StreamGageMatrix$Site) {
- rmarkdown::render(input = "longterm_flow.Rmd", 
+ rmarkdown::render(input = "longterm_flow.Rmd",
                     params = list(ID = i),
                     output_file=paste0(i),
                     output_dir = "sites_results_html/")
@@ -159,6 +159,8 @@ plotFlowTrend <- function (eList, istat, startDate = NA, endDate = NA,
                       tinyPlot = tinyPlot, lwd = lwd, col = col, ...)
   lines(localSeries$years, localSeries$qSmooth, lwd = lwd, 
         col = col)
+  slope_pval <- list(discharge_stat = istat, slope = slope, slope_pct = slopePct, p_value = pValue)
+  return(slope_pval)
 }
 
 #########################################################################################
@@ -786,6 +788,21 @@ plotFourAny(eList, 1, 3, 6, 7, qUnit = 1) # modified function to plot the rest o
 The code for this is sourced in the flowTrends.R file in Section 1.1 and was copied from the EGRET page on USGS via [this site](https://rconnect.usgs.gov/EGRET/articles/streamflow_trend.html#making-a-graph-of-the-trend-in-a-single-flow-statistic) (Hirsch, R.M., 2018 (updated 2023), Daily Streamflow Trend Analysis).
 
 These graphs use the same smoothing method as the plots described in section 2 for the same discharge statistics, but the smoothing window is 30 years (rather than 20 years as in the functions from Section 3.2). Therefore, for short time periods (\~30 years) a lot of the trend lines will look like straight lines or very smooth curves. The plot also gives a trend slope (calculated by Theil-Sen Estimator, linear for univariate time-series) in % per year with a p-value estimate based on Mann-Kendall, adjusted for year to year serial correlation (common in time-series).
+
+```{r Mann-Kendall-1, echo=FALSE}
+istat_results <- list()
+
+for (stat in 1:8) {
+  #istat <-paste0("istat_", stat)
+  istat <- plotFlowTrend(eList, istat = stat, qUnit = 1, paStart = 10, paLong = 12)
+  istat <- c(model = ID, istat)
+  istat_results[[length(istat_results)+1]] <- istat
+}
+
+istat_results <- reduce(istat_results, bind_rows)
+projection_results <- rbind(projection_results, test)
+```
+
 
 ```{r Mann-Kendall-1, echo=FALSE}
 plotFourTrendGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
