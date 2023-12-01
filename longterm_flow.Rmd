@@ -651,7 +651,7 @@ Daily$Year <- trunc(Daily$DecYear)
 cfs_historical <- Daily %>% select(Day, cfs, Year)
 cfs_historical <- arrange(cfs_historical, Day)
 cfs_historical <- pivot_wider(cfs_historical, names_from = Day, values_from = cfs)
-quants <- c(0.25,0.50, 0.75)
+quants <- c(0.25, 0.50, 0.75)
 Percentiles <- apply(cfs_historical[2:dim(cfs_historical)[2]], 2, quantile, probs = quants, na.rm = TRUE)
 Mean <- apply(cfs_historical[2:dim(cfs_historical)[2]], 2, mean, na.rm = TRUE)
 historical_stats <- t(rbind(Percentiles, Mean))
@@ -1029,6 +1029,43 @@ wtr_yr <- function(dates, start_month=10) {
   adj.year = dates.posix$year + 1900 + offset
   adj.year
 }
+
+
+peakFlow <- readNWISpeak(siteID, startDate=startDate, endDate=endDate)
+peakFlow <- peakFlow %>% drop_na(peak_dt)
+peakFlow$Day <- as.numeric(format(peakFlow$peak_dt, "%j"))
+peakFlow$WaterYear <- wtr_yr(peakFlow$peak_dt)
+peakFlow$Year <- as.numeric(format(peakFlow$peak_dt, "%Y"))
+theil_sen <- senth(peakFlow$WaterYear, peakFlow$Day, site = site, Xlab = "Year", Ylab = "Days Since January 1st", legend_loc = "topright")
+```
+
+```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
+wtr_yr <- function(dates, start_month=10) {
+  dates.posix = as.POSIXlt(dates)
+  offset = ifelse(dates.posix$mon >= start_month - 1, 1, 0)
+  adj.year = dates.posix$year + 1900 + offset
+  adj.year
+}
+
+peakFlow <- Daily %>% 
+  group_by(waterYear) %>% 
+  mutate(leapYear = if_else(max(Day) == 366, TRUE, FALSE))
+
+
+peakFlow <- Daily %>% 
+  select(waterYear, cfs, Day, Date) %>% 
+  group_by(waterYear) %>% 
+  mutate(max_day = max(cfs)) %>% 
+  filter(cfs == max_day) %>% 
+  select(!max_day)
+
+Daily %>% filter(DecYear >=2025 & DecYear <2026) %>% 
+  select(Date) %>% 
+  duplicated()
+  
+
+
+
 peakFlow <- readNWISpeak(siteID, startDate=startDate, endDate=endDate)
 peakFlow <- peakFlow %>% drop_na(peak_dt)
 peakFlow$Day <- as.numeric(format(peakFlow$peak_dt, "%j"))
