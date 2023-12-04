@@ -1020,38 +1020,20 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 }
 ```
 
-```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-wtr_yr <- function(dates, start_month=10) {
-  dates.posix = as.POSIXlt(dates)
-  offset = ifelse(dates.posix$mon >= start_month - 1, 1, 0)
-  adj.year = dates.posix$year + 1900 + offset
-  adj.year
-}
-
-
-peakFlow <- readNWISpeak(siteID, startDate=startDate, endDate=endDate)
-peakFlow <- peakFlow %>% drop_na(peak_dt)
-peakFlow$Day <- as.numeric(format(peakFlow$peak_dt, "%j"))
-peakFlow$WaterYear <- wtr_yr(peakFlow$peak_dt)
-peakFlow$Year <- as.numeric(format(peakFlow$peak_dt, "%Y"))
-theil_sen <- senth(peakFlow$WaterYear, peakFlow$Day, site = site, Xlab = "Year", Ylab = "Days Since January 1st", legend_loc = "topright")
-```
 
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
 peakFlow <- Daily %>% 
-  group_by(trunc(DecYear)) %>% 
-  mutate(leapYear = 
-           if_else(any(format(as.Date(Date), "%m-%d") == "02-29"), 
-                   TRUE, FALSE)) %>% 
-  mutate(waterYear_Day = )
-  ungroup() %>% 
-  #select(waterYear, cfs, Day, Date, leapYear) %>% 
+  mutate(wateryear_day = if_else(Day >= 275, Day - 274, Day + 92)) %>%
+  select(waterYear, cfs, wateryear_day, Date) %>% 
   group_by(waterYear) %>% 
   mutate(max_day = max(cfs)) %>% 
   filter(cfs == max_day) %>% 
   select(!max_day)
-
-
+  
+theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
+                   site = site, 
+                   Xlab = "Water Year", Ylab = "Days Since October 1st", 
+                   legend_loc = "topright")  
 
 ```
 
@@ -1070,8 +1052,8 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
 The below plots are to check assumptions on the OLS model to see if it is appropriate for peak flow. Plot 1: Checks linearity. Ensure that there is not a relationship between the residuals and the fitted values for our peak flow vs. year linear model. The points should all be evenly spaced around zero, and there should not be an obvious relationship in them (no curves, fanning out on either side, etc). Plot 2: Normal Q-Q is used to check data normality. The residuals should follow the straight dashed line. Plot 3: Scale-location can be used to check for homogeneity of the residuals' variances. Should be relatively flat line with equally spread points. Plot 4: Checks for outliers and influential points. If there are points outside of the red hashed lines (these may not show up if no points are influential), they impact the OLS model.
 
 ```{r PeakFlow-Residuals, echo=FALSE}
-lm_peak <- lm(peakFlow$Day~peakFlow$Year)
-plot(peakFlow$Year, peakFlow$Day, cex.lab=1.25, xlab = "Year", ylab = "Day of the Year", 
+lm_peak <- lm(peakFlow$wateryear_day~peakFlow$waterYear)
+plot(peakFlow$waterYear, peakFlow$wateryear_day, cex.lab=1.25, xlab = "Year", ylab = "Day of the Year", 
      main = paste0("Date of Peak Flow for ", site),
     cex.axis = 1.25, cex.main = 1.5, cex.lab = 1.25, col = "darkgray")
 abline(lm_peak,col="blue", lwd =3)
