@@ -33,11 +33,14 @@ projection_results <- data.frame()
 projection_results <- data.frame(model = character(),
                                  discharge_stat = character(),
                                  slope = numeric(),
-                                 slopepct_magnitude = numeric(),
+                                 slopepct_mag = numeric(),
+                                 slopepct_mag_interp = character(),
                                  p_value = numeric(),
                   stringsAsFactors=FALSE)
 
-# projection_results[projection_results$models == i,]
+# slopepct_magnitude 
+  #  for discharge stats this is the percent change per year
+  #  for the regression lines, this is the change in number of days over 100 years
 
 
 

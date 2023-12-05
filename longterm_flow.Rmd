@@ -51,7 +51,8 @@ First install and load the packages for analysis (they are all cited in the refe
 
 ```{r Libraries, message=FALSE, warning=FALSE, include=FALSE, results=FALSE}
 # List of packages to check and install
-packages <- c("dataRetrieval", "EGRET", "quantreg", "tidyverse", "rkt", "zyp", "lubridate", "kableExtra", "scales")
+packages <- c("dataRetrieval", "EGRET", "quantreg", "tidyverse", 
+              "rkt", "zyp", "lubridate", "kableExtra", "scales")
 not_installed <- packages[!(packages %in% installed.packages()[ , "Package"])]    # 
 if(length(not_installed)) install.packages(not_installed)
 # Load packages
@@ -158,7 +159,10 @@ plotFlowTrend <- function (eList, istat, startDate = NA, endDate = NA,
                       tinyPlot = tinyPlot, lwd = lwd, col = col, ...)
   lines(localSeries$years, localSeries$qSmooth, lwd = lwd, 
         col = col)
-  slope_pval <- list(discharge_stat = istat, slope = slope, slope_pct = slopePct, p_value = pValue)
+  slope_pval <- list(discharge_stat = istat, slope = slope, 
+                     slopepct_mag = slopePct,
+                     slopepct_mag_interp = "Percent change per year", 
+                     p_value = pValue)
   return(slope_pval)
 }
 
@@ -665,7 +669,7 @@ historical_stats %>% ggplot(aes(x=Day)) +
   geom_line(aes(y=`25%`, color="25th Percentile", lty="25th Percentile"), lwd=1) +
   geom_line(aes(y=`75%`, color="75th Percentile", lty="75th Percentile"), lwd=1) +
   theme_bw() + 
-  labs(x="Day", y="Discharge (cfs)", title=paste0("Historical Hydrograph \n for ", siteName)) +
+  labs(x="Day", y="Discharge (cfs)", title=paste0("Hydrograph \n for ", siteName)) +
   theme(plot.title = element_text(hjust=0.5, face="bold"),
         axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
@@ -799,15 +803,6 @@ for (stat in 1:8) {
 
 istat_results <- reduce(istat_results, bind_rows)
 projection_results <- rbind(projection_results, istat_results)
-```
-
-
-```{r Mann-Kendall-1, echo=FALSE}
-plotFourTrendGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
-```
-
-```{r Mann-Kendall-2, echo=FALSE}
-plotRemainingiStatGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
 ```
 
 
@@ -1068,15 +1063,26 @@ plot(lm_peak)
 Finally, a significant trend in the OLS peak flow vs. year (i.e. is the trend line fit above in dashed statistically significant). Below the word `Coefficients`, there is a row titled `peakFlow$year`. This row gives the slope estimate, `Estimate`, and p-value, `Pr(>|t|)`. If the value of `Pr(>|t|)` for peakFlow\$year is less than 0.05, this suggests that it is highly likely there is a trend in peak flow.
 
 ```{r PeakFlow-Stats, echo=FALSE}
-overall_p <- function(my_model) {
-    f <- summary(my_model)$fstatistic
-    p <- pf(f[1],f[2],f[3],lower.tail=F)
-    attributes(p) <- NULL
-    return(p)
-}
-overall_p(lm_peak)
-summary(lm_peak)
+test <- summary(lm_peak)
 ```
+
+``` {r Bind-Regression, echo=FALSE}
+reg_results <- tidy(lm_peak)
+reg_results <- reg_results[2,] %>% select(term, estimate, p.value) %>% 
+  mutate(term = "peakflow_OLS",
+         model = site, 
+         slopepct_mag = estimate*100, 
+         slopepct_mag_interp = "Estimated Change per Century (number of days)") %>% 
+  relocate(model, discharge_stat = term, slope = estimate, slopepct_mag, 
+           slopepct_mag_interp, p_value = p.value)
+  
+
+
+projection_results <- rbind(projection_results, istat_results)
+
+
+```
+
 
 # 6. References
 
