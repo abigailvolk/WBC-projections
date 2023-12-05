@@ -20,11 +20,11 @@ models <- unique(projections$model) # unique models for EGRET to loop through
 #   dir.create(path) # create a directory 
 # }
 
-for (i in models){
-  model <- filter(projections, model == i) %>% select(date, daily_cfs)
-  path <- file.path("EGRETdaily_future_runoff", i, "daily_input.csv")
-  write.csv(model, file = path, row.names = F)
-}
+# for (i in models){
+#   model <- filter(projections, model == i) %>% select(date, daily_cfs)
+#   path <- file.path("EGRETdaily_future_runoff", i, "daily_input.csv")
+#   write.csv(model, file = path, row.names = F)
+# }
 
 
 
@@ -49,7 +49,7 @@ projection_results <- data.frame(model = character(),
 working_path <- "EGRETdaily_future_runoff"
 
 for (i in models) {
-  rmarkdown::render(input = "projected_flow.Rmd",
+  rmarkdown::render(input = "longterm_flow.Rmd",
                     params = list(ID = i),
                     output_file="projected_flow",
                     output_dir = file.path(working_path, i))

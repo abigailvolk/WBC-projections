@@ -17,10 +17,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r SiteSelection}
 #### MANUALLY Identify which siteID you want to use:
-# site <- params$ID
-# ID <- params$ID
-ID <- "BNU-ESM_45"
-site <- "BNU-ESM_45"
+site <- params$ID
+ID <- params$ID
+# ID <- "BNU-ESM_45"
+# site <- "BNU-ESM_45"
 ```
 
 NOTE ON AUTOMATION:
@@ -1216,7 +1216,7 @@ knitr::purl(rmd_file)
 ```
 
 ---
-title: "`r paste0(SpecificGageInfo$siteName)`"
+title: "`r paste0(site)`"
 subtitle: "Longterm Flow Analysis, updated 2023-08-22"
 author: "Abby Volk, Ally Mars, Andy Ray, Jana Cram, Ben LaFrance"
 date: "`r Sys.Date()`"
