@@ -13,11 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 1. Setup
 
-## 1.1 Site Selection
-
-Add the target water body abbreviation for the site of interest. This Rmd is currently set up for all of the GRYN sites, but adding any USGS stream gage sites by adding a row with the site info into the `AddedSites` matrix below.
-
-*REQUIRED*: Manually enter the abbreviation for the GRYN site of interest. Options are SNR1, SNR2, YRCS, LMR, MDR, SBC, SHR, BHR1, and BHR2.
+## 1.1 Model Set-Up
 
 ```{r SiteSelection}
 #### MANUALLY Identify which siteID you want to use:
@@ -1063,10 +1059,15 @@ plot(lm_peak)
 Finally, a significant trend in the OLS peak flow vs. year (i.e. is the trend line fit above in dashed statistically significant). Below the word `Coefficients`, there is a row titled `peakFlow$year`. This row gives the slope estimate, `Estimate`, and p-value, `Pr(>|t|)`. If the value of `Pr(>|t|)` for peakFlow\$year is less than 0.05, this suggests that it is highly likely there is a trend in peak flow.
 
 ```{r PeakFlow-Stats, echo=FALSE}
-test <- summary(lm_peak)
+summary(lm_peak)
 ```
 
 ``` {r Bind-Regression, echo=FALSE}
+theil_bind <- data.frame(model = site, discharge_stat = "peakflow_TS", 
+                         slope = theil_sen$slope, 
+                         slopepct_mag = (theil_sen$slope)*100, 
+                         slopepct_mag_interp = "Estimated Change per Century (number of days)",
+                         p_value = theil_sen$p.value)  
 reg_results <- tidy(lm_peak)
 reg_results <- reg_results[2,] %>% select(term, estimate, p.value) %>% 
   mutate(term = "peakflow_OLS",
@@ -1075,10 +1076,8 @@ reg_results <- reg_results[2,] %>% select(term, estimate, p.value) %>%
          slopepct_mag_interp = "Estimated Change per Century (number of days)") %>% 
   relocate(model, discharge_stat = term, slope = estimate, slopepct_mag, 
            slopepct_mag_interp, p_value = p.value)
-  
-
-
-projection_results <- rbind(projection_results, istat_results)
+reg_results <- rbind(theil_bind, reg_results)
+projection_results <- rbind(projection_results, reg_results)
 
 
 ```
