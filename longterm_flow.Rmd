@@ -798,7 +798,7 @@ for (stat in 1:8) {
 }
 
 istat_results <- reduce(istat_results, bind_rows)
-projection_results <- rbind(projection_results, test)
+projection_results <- rbind(projection_results, istat_results)
 ```
 
 
@@ -1022,13 +1022,18 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 
 
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-peakFlow <- Daily %>% 
+peakFlow_days <- function(Daily){
+  Daily %>% 
   mutate(wateryear_day = if_else(Day >= 275, Day - 274, Day + 92)) %>%
   select(waterYear, cfs, wateryear_day, Date) %>% 
   group_by(waterYear) %>% 
   mutate(max_day = max(cfs)) %>% 
   filter(cfs == max_day) %>% 
   select(!max_day)
+}
+
+peakFlow <- peakFlow_days(Daily)
+
   
 theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
                    site = site, 
@@ -1063,6 +1068,13 @@ plot(lm_peak)
 Finally, a significant trend in the OLS peak flow vs. year (i.e. is the trend line fit above in dashed statistically significant). Below the word `Coefficients`, there is a row titled `peakFlow$year`. This row gives the slope estimate, `Estimate`, and p-value, `Pr(>|t|)`. If the value of `Pr(>|t|)` for peakFlow\$year is less than 0.05, this suggests that it is highly likely there is a trend in peak flow.
 
 ```{r PeakFlow-Stats, echo=FALSE}
+overall_p <- function(my_model) {
+    f <- summary(my_model)$fstatistic
+    p <- pf(f[1],f[2],f[3],lower.tail=F)
+    attributes(p) <- NULL
+    return(p)
+}
+overall_p(lm_peak)
 summary(lm_peak)
 ```
 

@@ -33,7 +33,7 @@ projection_results <- data.frame()
 projection_results <- data.frame(model = character(),
                                  discharge_stat = character(),
                                  slope = numeric(),
-                                 slope_pct = numeric(),
+                                 slopepct_magnitude = numeric(),
                                  p_value = numeric(),
                   stringsAsFactors=FALSE)
 
