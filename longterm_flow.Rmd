@@ -48,7 +48,8 @@ First install and load the packages for analysis (they are all cited in the refe
 ```{r Libraries, message=FALSE, warning=FALSE, include=FALSE, results=FALSE}
 # List of packages to check and install
 packages <- c("dataRetrieval", "EGRET", "quantreg", "tidyverse", 
-              "rkt", "zyp", "lubridate", "kableExtra", "scales")
+              "rkt", "zyp", "lubridate", "kableExtra", "scales",
+              "broom")
 not_installed <- packages[!(packages %in% installed.packages()[ , "Package"])]    # 
 if(length(not_installed)) install.packages(not_installed)
 # Load packages
@@ -665,7 +666,7 @@ historical_stats %>% ggplot(aes(x=Day)) +
   geom_line(aes(y=`25%`, color="25th Percentile", lty="25th Percentile"), lwd=1) +
   geom_line(aes(y=`75%`, color="75th Percentile", lty="75th Percentile"), lwd=1) +
   theme_bw() + 
-  labs(x="Day", y="Discharge (cfs)", title=paste0("Hydrograph \n for ", siteName)) +
+  labs(x="Days since January 1st", y="Discharge (cfs)", title=paste0("Summary Hydrograph \n for ", siteName)) +
   theme(plot.title = element_text(hjust=0.5, face="bold"),
         axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
