@@ -13,32 +13,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 1. Setup
 
-## 1.1 Model Set-Up
+## 1.1 Site Selection
+
+Add the target water body abbreviation for the site of interest. This Rmd is currently set up for all of the GRYN sites, but adding any USGS stream gage sites by adding a row with the site info into the `AddedSites` matrix below.
+
+*REQUIRED*: Manually enter the abbreviation for the GRYN site of interest. Options are SNR1, SNR2, YRCS, LMR, MDR, SBC, SHR, BHR1, and BHR2.
 
 ```{r SiteSelection}
 #### MANUALLY Identify which siteID you want to use:
-site <- params$ID
-ID <- params$ID
-# ID <- "BNU-ESM_45"
-# site <- "BNU-ESM_45"
-```
-
-NOTE ON AUTOMATION:
-
-To automate running this R markdown for multiple different gages at once, you can use the YAML header (the top part of this script with the dashed lines above and below) and some helper code run in either the console or saved as a separate R script.
-
-Parameters can be included in the YAML header under `params`. The parameters can then be called in the rest of the script using `params$<parameter name>`, which allows for automation. In this case, we are specifying a parameter named ID, which will then fill in the site with a different ID each time the R markdown is run (using some helper code).
-
-In this case, writing a simple external loop through IDs that match the SiteIDs contained in the stream gage matrix (Section 1.3) facilitates automating this process. Below is an example, which would be run in the R console or saved as a separate R script. The first line sets up the loop so that each site can be iterated through. Then we use the function `render` from `rmarkdown`, which tells R to render the `input` Rmd each time with a different parameter. We then can specify the output file name and output directory.
-
-```{r example-loop, eval=FALSE}
-for (i in StreamGageMatrix$Site) {
- rmarkdown::render(input = "longterm_flow.Rmd",
-                    params = list(ID = i),
-                    output_file=paste0(i),
-                    output_dir = "sites_results_html/")
-}
-
+site <- "WBC"
+#site <- params$ID
 ```
 
 ## 1.2 Load Packages
@@ -55,6 +39,7 @@ if(length(not_installed)) install.packages(not_installed)
 # Load packages
 invisible(lapply(packages, require, character.only = TRUE))
 ```
+
 
 ```{r other-functions, include=FALSE}
 ########## this is the function you will use to make a single trend graph  ##############
@@ -601,14 +586,32 @@ plot15cfs <- function (eList, yearStart, yearEnd)
 
 ```
 
-## 1.3 Set up Filepaths
+## 1.3 Set up GRYN Site Matrix for Ease of Re-using this .Rmd
 
-Now let's get ready to make an EGRET object. 
+Now let's get ready to make an EGRET object. For ease of quickly reusing this Rmd for different sites, a matrix of the GRYN sites has been created. The final chunk indexes the matrix by the site abbreviation entered in the first code chunk above and saves the corresponding info for setting up the EGRET object. No start/end dates are provided in the matrix because EGRET automatically will add start/end dates from the record the stream gage discharge data if none are provided. This will keep the data as current as possible each time the code is run.
+
+*OPTIONAL*: As stated above, other non-GRYN sites could easily be manually added to the AddedSites matrix below the last entry.
 
 ```{r SiteID, include=FALSE}
-filePath <- file.path("EGRETdaily_future_runoff", ID)
-fileName <- "daily_input.csv"
+StreamGageMatrix <- matrix(nrow = 0, ncol = 5, dimnames = list(NULL, c("Site", "GageID", "StartDate","EndDate", "SiteName")))
+#                    "SiteID",   "GageID",  "StartDate",    "EndDate", "SiteName",
+AddedSites <- matrix(c("SNR1", "13010065", "1984-10-01", "", "Snake River at Flagg, WY",
+                       "SNR2", "13013650", "1995-10-01", "", "Snake River at Moose, WY",
+                       "YRCS", "06191500", "1911-01-01", "", "Yellowstone River at Corwin Springs",
+                       "LMR" , "06188000", "1923-10-01", "", "Lamar River near Tower Junction, WY",
+                       "MDR" , "06037500", "1914-10-01", "", "Madison River near West Yellowstone, MT",
+                       "SBC" , "06187915", "1999-10-01", "", "Soda Butte Creek near Silver Gate, MT",
+                       "SHR" , "06285100", "1966-10-01", "", "Shoshone River near Lovell, WY",
+                       "BHR1", "06287000", "1968-10-01", "", "Bighorn River near St. Xavier, MT",
+                       "BHR2", "06279500", "1929-04-01", "", "Bighorn River at Kane, WY",
+                       "WBC", "09505200", "", "", "Wet Beaver Creek near Rimrock, AZ",
+                       "RWC", "11460151", "", "", "Redwood Creek at Hwy 1 Bridge Muir Beach, CA"),
+                     ncol = 5, byrow = TRUE)
 
+
+StreamGageMatrix <- rbind(StreamGageMatrix, AddedSites)
+StreamGageMatrix <- data.frame(StreamGageMatrix)
+SpecificGageInfo <- subset(StreamGageMatrix, Site == site)
 ```
 
 ## 1.4 Set up EGRET object
@@ -618,15 +621,20 @@ The next code chunk prepares the gage ID and site name based on the abbreviation
 *OPTIONAL*: If you only want figures with data that is only USGS approved, the `dplyr::filter` will remove any of the provisional data. ALSO, the arguments within the function `setPA()` can be altered to display a particular season or time period of interest. Currently, `paStart` is set to 10, meaning the record starts in October, and `paLong` is set to 12, meaning that the record will include all 12 months following water year conventions. These values could be changed to 1 and 12 respectively if you want the calendar year summaries (January to December), or 3 and 4 respectively if you wanted March through June, and so on.
 
 ```{r Gage, echo=FALSE, warning=FALSE}
-siteID <- ID
-siteName <- ID
-Daily <- readUserDaily(filePath, fileName)
-INFO<- readNWISInfo("09505200","00060", interactive = FALSE)
+startDate <- SpecificGageInfo$StartDate
+endDate <- SpecificGageInfo$EndDate
+siteID <- SpecificGageInfo$GageID
+siteName <- SpecificGageInfo$SiteName
+Daily <- readNWISDaily(siteID,"00060",startDate,endDate)
+Daily <- dplyr::filter(Daily, grepl('A', Qualifier)) #If you only want approved data
+INFO<- readNWISInfo(siteID,"00060", interactive = FALSE)
 INFO$shortName <- site
 eList <- as.egret(INFO, Daily, NA, NA)
 eList <- setPA(eList, paStart = 10, paLong = 12)
 flow_percentiles <- flowDuration(eList, qUnit = 1)
 Daily$cfs <- Daily$Q*35.314666212661
+print(min(Daily$Date))
+print(max(Daily$Date))
 ```
 
 
@@ -645,28 +653,25 @@ knitr::kable(flow_percentiles, format ="html", booktabs=TRUE, longtable = TRUE, 
 
 The below hydrograph displays the current year vs. the mean, 25th, and 75th percentiles from the entire record.
 
-
 ```{r Historical-Hydrograph, echo=FALSE, message=FALSE, warning=FALSE}
 Daily$Year <- trunc(Daily$DecYear)
 cfs_historical <- Daily %>% select(Day, cfs, Year)
 cfs_historical <- arrange(cfs_historical, Day)
 cfs_historical <- pivot_wider(cfs_historical, names_from = Day, values_from = cfs)
-quants <- c(0.25, 0.50, 0.75)
+quants <- c(0.25,0.50, 0.75)
 Percentiles <- apply(cfs_historical[2:dim(cfs_historical)[2]], 2, quantile, probs = quants, na.rm = TRUE)
 Mean <- apply(cfs_historical[2:dim(cfs_historical)[2]], 2, mean, na.rm = TRUE)
 historical_stats <- t(rbind(Percentiles, Mean))
 historical_stats <- as.data.frame(historical_stats)
 historical_stats$Day <- c(1:366)
 
-
 historical_stats %>% ggplot(aes(x=Day)) +
   geom_ribbon(aes(ymin=`25%`, ymax=`75%`), fill = "#6BD7AF", alpha = 0.5) +
   geom_line(aes(y=Mean, color="Mean", lty="Mean"), lwd=1) +
-  #geom_line(aes(y=cfs_2023, color="Current Year" , lty="Current Year"), lwd=1) +
   geom_line(aes(y=`25%`, color="25th Percentile", lty="25th Percentile"), lwd=1) +
   geom_line(aes(y=`75%`, color="75th Percentile", lty="75th Percentile"), lwd=1) +
   theme_bw() + 
-  labs(x="Days since January 1st", y="Discharge (cfs)", title=paste0("Summary Hydrograph \n for ", siteName)) +
+  labs(x="Day", y="Discharge (cfs)", title=paste0("Historical vs. Current Year (", current_yr, ") Hydrographs \n for ", siteName)) +
   theme(plot.title = element_text(hjust=0.5, face="bold"),
         axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
@@ -674,9 +679,11 @@ historical_stats %>% ggplot(aes(x=Day)) +
         legend.text = element_text(size=10),
         legend.title.align=0.5) +
   scale_color_manual(name = "Legend", 
-                     values = c("Mean" = "black", "Current Year" = "blue", "25th Percentile" = "gray", "75th Percentile" = "gray60")) +
+                     values = c("Mean" = "black", "25th Percentile" = "gray", "75th Percentile" = "gray60")) +
   scale_linetype_manual(name = "Legend",
                         values = c("Mean" = 6, "Current Year" = 1, "25th Percentile" = 2, "75th Percentile" = 2))
+
+
 
 ```
 
@@ -790,16 +797,11 @@ The code for this is sourced in the flowTrends.R file in Section 1.1 and was cop
 These graphs use the same smoothing method as the plots described in section 2 for the same discharge statistics, but the smoothing window is 30 years (rather than 20 years as in the functions from Section 3.2). Therefore, for short time periods (\~30 years) a lot of the trend lines will look like straight lines or very smooth curves. The plot also gives a trend slope (calculated by Theil-Sen Estimator, linear for univariate time-series) in % per year with a p-value estimate based on Mann-Kendall, adjusted for year to year serial correlation (common in time-series).
 
 ```{r Mann-Kendall-1, echo=FALSE}
-istat_results <- list()
+plotFourTrendGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
+```
 
-for (stat in 1:8) {
-  istat <- plotFlowTrend(eList, istat = stat, qUnit = 1, paStart = 10, paLong = 12)
-  istat <- c(model = ID, istat)
-  istat_results[[length(istat_results)+1]] <- istat
-}
-
-istat_results <- reduce(istat_results, bind_rows)
-projection_results <- rbind(projection_results, istat_results)
+```{r Mann-Kendall-2, echo=FALSE}
+plotRemainingiStatGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
 ```
 
 
@@ -1012,26 +1014,19 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 }
 ```
 
-
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-peakFlow_days <- function(Daily){
-  Daily %>% 
-  mutate(wateryear_day = if_else(Day >= 275, Day - 274, Day + 92)) %>%
-  select(waterYear, cfs, wateryear_day, Date) %>% 
-  group_by(waterYear) %>% 
-  mutate(max_day = max(cfs)) %>% 
-  filter(cfs == max_day) %>% 
-  select(!max_day)
+wtr_yr <- function(dates, start_month=10) {
+  dates.posix = as.POSIXlt(dates)
+  offset = ifelse(dates.posix$mon >= start_month - 1, 1, 0)
+  adj.year = dates.posix$year + 1900 + offset
+  adj.year
 }
-
-peakFlow <- peakFlow_days(Daily)
-
-  
-theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
-                   site = site, 
-                   Xlab = "Water Year", Ylab = "Days Since October 1st", 
-                   legend_loc = "topright")  
-
+peakFlow <- readNWISpeak(siteID, startDate=startDate, endDate=endDate)
+peakFlow <- peakFlow %>% drop_na(peak_dt)
+peakFlow$Day <- as.numeric(format(peakFlow$peak_dt, "%j"))
+peakFlow$WaterYear <- wtr_yr(peakFlow$peak_dt)
+peakFlow$Year <- as.numeric(format(peakFlow$peak_dt, "%Y"))
+theil_sen <- senth(peakFlow$WaterYear, peakFlow$Day, site = site, Xlab = "Year", Ylab = "Days Since January 1st", legend_loc = "topright")
 ```
 
 ```{r Senth-Statistics, echo=FALSE}
@@ -1049,8 +1044,8 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
 The below plots are to check assumptions on the OLS model to see if it is appropriate for peak flow. Plot 1: Checks linearity. Ensure that there is not a relationship between the residuals and the fitted values for our peak flow vs. year linear model. The points should all be evenly spaced around zero, and there should not be an obvious relationship in them (no curves, fanning out on either side, etc). Plot 2: Normal Q-Q is used to check data normality. The residuals should follow the straight dashed line. Plot 3: Scale-location can be used to check for homogeneity of the residuals' variances. Should be relatively flat line with equally spread points. Plot 4: Checks for outliers and influential points. If there are points outside of the red hashed lines (these may not show up if no points are influential), they impact the OLS model.
 
 ```{r PeakFlow-Residuals, echo=FALSE}
-lm_peak <- lm(peakFlow$wateryear_day~peakFlow$waterYear)
-plot(peakFlow$waterYear, peakFlow$wateryear_day, cex.lab=1.25, xlab = "Year", ylab = "Day of the Year", 
+lm_peak <- lm(peakFlow$Day~peakFlow$Year)
+plot(peakFlow$Year, peakFlow$Day, cex.lab=1.25, xlab = "Year", ylab = "Day of the Year", 
      main = paste0("Date of Peak Flow for ", site),
     cex.axis = 1.25, cex.main = 1.5, cex.lab = 1.25, col = "darkgray")
 abline(lm_peak,col="blue", lwd =3)
@@ -1062,27 +1057,6 @@ Finally, a significant trend in the OLS peak flow vs. year (i.e. is the trend li
 ```{r PeakFlow-Stats, echo=FALSE}
 summary(lm_peak)
 ```
-
-``` {r Bind-Regression, echo=FALSE}
-theil_bind <- data.frame(model = site, discharge_stat = "peakflow_TS", 
-                         slope = theil_sen$slope, 
-                         slopepct_mag = (theil_sen$slope)*100, 
-                         slopepct_mag_interp = "Estimated Change per Century (number of days)",
-                         p_value = theil_sen$p.value)  
-reg_results <- tidy(lm_peak)
-reg_results <- reg_results[2,] %>% select(term, estimate, p.value) %>% 
-  mutate(term = "peakflow_OLS",
-         model = site, 
-         slopepct_mag = estimate*100, 
-         slopepct_mag_interp = "Estimated Change per Century (number of days)") %>% 
-  relocate(model, discharge_stat = term, slope = estimate, slopepct_mag, 
-           slopepct_mag_interp, p_value = p.value)
-reg_results <- rbind(theil_bind, reg_results)
-projection_results <- rbind(projection_results, reg_results)
-
-
-```
-
 
 # 6. References
 
@@ -1217,7 +1191,7 @@ knitr::purl(rmd_file)
 ```
 
 ---
-title: "`r paste0(site)`"
+title: "`r paste0(SpecificGageInfo$siteName)`"
 subtitle: "Longterm Flow Analysis, updated 2023-08-22"
 author: "Abby Volk, Ally Mars, Andy Ray, Jana Cram, Ben LaFrance"
 date: "`r Sys.Date()`"

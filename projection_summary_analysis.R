@@ -4,16 +4,27 @@
 packages <-  c("tidyverse") #create a list of all required packages
 lapply(packages, library, character.only = T)
 
+windowsFonts("Frutiger LT Std 55 Roman" = windowsFont("Frutiger LT Std 55 Roman"))
+fontsize=20
+nps_font <- "Frutiger LT Std 55 Roman" ###NPS fonts
+nps_theme2 <- function(base_size = fontsize, base_family=nps_font) {
+  theme_bw(base_size = base_size, base_family = nps_font) %+replace%
+    theme(axis.text.x = element_text(family=nps_font, size = base_size * 0.8),
+          complete = TRUE
+    )}
 
 #### Read in and Wrangle Projection Results Table ####
 projection_results <- read_csv("v5_EGRETprojectionresults.csv") %>% 
   separate(model, into = c("model", "rcp"), sep = "_") %>%  # create an RCP column
   filter(model != "MIROC-ESM-CHEM")
-# Let's move the peak flow stuff to a different data frame
+
+# Move the peak flow stuff to a different data frame
 projection_peak_flow <- projection_results %>% 
   filter(discharge_stat == "peakflow_TS" | discharge_stat == "peakflow_OLS")
 
-projection_istats <- projection_results %>% filter(!grepl("peakflow", discharge_stat))
+projection_istats <- projection_results %>% 
+  filter(!grepl("peakflow", discharge_stat)) %>% 
+  mutate(cfs_change_over_record = slope*77)
 
 # Join the istats to the table
 istat_table <- matrix(c("1", "Minimum 1-day", 
@@ -39,7 +50,22 @@ projection_istats %>%
   geom_hline(yintercept = 0) +
   labs(y = "Theil-Sen Trend Slope: cfs/year (2023-2100)") +
   coord_flip() +
-  theme_bw()
+  theme_bw() +
+  scale_fill_manual(values = c("orange", "red")) +
+  nps_theme2()
+
+# or change over the record
+projection_istats %>% 
+  filter(model != "Historical") %>% 
+  ggplot(aes(x=`Discharge Statistic Name`, y = cfs_change_over_record, fill=rcp)) + 
+  geom_boxplot(position = "dodge") +
+  geom_hline(yintercept = 0) +
+  labs(y = "Cfs change over record (2023-2100)") +
+  coord_flip() +
+  theme_bw() +
+  scale_fill_manual(values = c("orange", "red")) +
+  nps_theme2()
+
 
 # or % change per year
 projection_istats %>% 

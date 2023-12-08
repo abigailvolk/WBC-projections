@@ -49,7 +49,7 @@ projection_results <- data.frame(model = character(),
 working_path <- "EGRETdaily_future_runoff"
 
 for (i in models) {
-  rmarkdown::render(input = "longterm_flow.Rmd",
+  rmarkdown::render(input = "projected_flow.Rmd",
                     params = list(ID = i),
                     output_file="projected_flow",
                     output_dir = file.path(working_path, i))
