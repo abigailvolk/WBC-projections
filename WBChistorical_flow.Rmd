@@ -666,23 +666,17 @@ historical_stats <- as.data.frame(historical_stats)
 historical_stats$Day <- c(1:366)
 
 historical_stats %>% ggplot(aes(x=Day)) +
-  geom_ribbon(aes(ymin=`25%`, ymax=`75%`), fill = "#6BD7AF", alpha = 0.5) +
-  geom_line(aes(y=Mean, color="Mean", lty="Mean"), lwd=1) +
-  geom_line(aes(y=`25%`, color="25th Percentile", lty="25th Percentile"), lwd=1) +
-  geom_line(aes(y=`75%`, color="75th Percentile", lty="75th Percentile"), lwd=1) +
+  geom_line(aes(y=`50%`, color="Median"), lwd=1) +
+  geom_line(aes(y=Mean, color="Mean"), lwd=1) +
   theme_bw() + 
-  labs(x="Day", y="Discharge (cfs)", title=paste0("Historical vs. Current Year (", current_yr, ") Hydrographs \n for ", siteName)) +
+  labs(x="Days Since January 1st", y="Discharge (cfs)", title=paste0("Historical Hydrograph \n for ", siteName, " (1961-2023)")) +
   theme(plot.title = element_text(hjust=0.5, face="bold"),
         axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
         legend.title = element_text(size=14),
         legend.text = element_text(size=10),
         legend.title.align=0.5) +
-  scale_color_manual(name = "Legend", 
-                     values = c("Mean" = "black", "25th Percentile" = "gray", "75th Percentile" = "gray60")) +
-  scale_linetype_manual(name = "Legend",
-                        values = c("Mean" = 6, "Current Year" = 1, "25th Percentile" = 2, "75th Percentile" = 2))
-
+  scale_color_manual(values = c("Mean" = "orange", "Median" = "black"))
 
 
 ```
@@ -797,13 +791,24 @@ The code for this is sourced in the flowTrends.R file in Section 1.1 and was cop
 These graphs use the same smoothing method as the plots described in section 2 for the same discharge statistics, but the smoothing window is 30 years (rather than 20 years as in the functions from Section 3.2). Therefore, for short time periods (\~30 years) a lot of the trend lines will look like straight lines or very smooth curves. The plot also gives a trend slope (calculated by Theil-Sen Estimator, linear for univariate time-series) in % per year with a p-value estimate based on Mann-Kendall, adjusted for year to year serial correlation (common in time-series).
 
 ```{r Mann-Kendall-1, echo=FALSE}
-plotFourTrendGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
+istat_results <- list()
+
+for (stat in 1:8) {
+  istat <- plotFlowTrend(eList, istat = stat, qUnit = 1, paStart = 10, paLong = 12)
+  istat <- c(model = site, istat)
+  istat_results[[length(istat_results)+1]] <- istat
+}
+
+istat_table <- as.data.frame(istat_table) %>% 
+  rename(dicharge_stat = istat)
+istat_results <- reduce(istat_results, bind_rows) 
+istat <- left_join(istat_results, istat_table, by = "discharge_stat")
+
 ```
 
-```{r Mann-Kendall-2, echo=FALSE}
-plotRemainingiStatGraphs(eList, qUnit = 1, legendSize = 0.5, paStart = 10, paLong = 12)
-```
+```{r istat-summary, echo=FALSE}
 
+```
 
 ## 3.4 Standard Deviation Plot of the Daily Mean (Log)
 
