@@ -856,7 +856,7 @@ for (stat in 1:8) {
   istat_results[[length(istat_results)+1]] <- istat
 }
 
-istat_table <- as.data.frame(istat_table) %>% 
+istat_table <- as_tibble(istat_table) %>% 
   rename(dicharge_stat = istat)
 istat_results <- reduce(istat_results, bind_rows) 
 istat <- left_join(istat_results, istat_table, by = "discharge_stat")
