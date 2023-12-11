@@ -681,6 +681,61 @@ historical_stats %>% ggplot(aes(x=Day)) +
 
 ```
 
+Annual hydrographs (annual discharge sum) for both the calendar year and watre year.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+annual_calendar <- Daily %>% 
+  select(Year, cfs) %>% 
+  filter(Year <= 2023) %>% 
+  group_by(Year) %>% 
+  summarize(frequency = n(),
+            sum_cfs = sum(cfs)) %>% 
+  filter(frequency > 250)
+annual_wateryear <- Daily %>% 
+  select(waterYear, cfs) %>% 
+  group_by(waterYear) %>% 
+  summarize(frequency = n(),
+            sum_cfs = sum(cfs)) %>% 
+    filter(frequency > 250)
+
+
+annual_calendar %>% 
+  ggplot(aes(x=Year, y = sum_cfs)) +
+  geom_line() +
+  geom_smooth(color = "green") +
+  geom_point() +
+  theme_bw() +
+  labs(x="Calendar Year", 
+       y="Discharge Sum (cfs)", 
+       title=paste0("Annual Hydrograph \n for ", siteName)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold"),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        legend.title = element_text(size=14),
+        legend.text = element_text(size=10),
+        legend.title.align=0.5)
+
+annual_wateryear %>% 
+  ggplot(aes(x=waterYear, y = sum_cfs)) +
+  geom_line() +
+  geom_smooth(color = "green") +
+  geom_point() +
+  theme_bw() +
+  labs(x="Water Year", 
+       y="Discharge Sum (cfs)", 
+       title=paste0("Annual Hydrograph \n for ", siteName)) +
+  theme(plot.title = element_text(hjust=0.5, face="bold"),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        legend.title = element_text(size=14),
+        legend.text = element_text(size=10),
+        legend.title.align=0.5)
+
+``` 
+
+
+
+
 ## 2.3 Flow Duration Curves
 
 The flow duration curve (FDC) is shown below. According to the USGS, the shape of the curves reveal information about the watershed. Steep slopes throughout indicate high stream variability impacted primarily by runoff, while flatter slopes generally indicate that the flow is equalized by storage in surface water or groundwater (Searcy, 1959). Flat slopes at low flow end and high flow ends of the FDC also are informative about the stream characteristics. If the stream stores a lot of water, flat slopes at the low flow end are expected. If the slope is flat at the high end, this generally indicates flow from snowmelt, flood plains, or swamp drainage (Searcy, 1959).
@@ -693,7 +748,9 @@ Daily %>% ggplot(aes(x = P, y = cfs))+
   geom_line()+
   scale_y_log10()+
   theme_bw() + 
-  labs(x="% Time Flow equal or exceeded", y= "Discharge (cfs)", title=paste0("Flow Duration Curve for \n", siteName)) +
+  labs(x="% Time Flow equal or exceeded", 
+       y= "Discharge (cfs)", 
+       title=paste0("Flow Duration Curve for \n", siteName)) +
   theme(plot.title = element_text(hjust=0.5, face="bold"),
         axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
