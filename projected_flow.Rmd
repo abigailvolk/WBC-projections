@@ -1016,7 +1016,8 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
 peakFlow_days <- function(Daily){
   Daily %>% 
-  mutate(wateryear_day = if_else(Day >= 275, Day - 274, Day + 92)) %>%
+  mutate(wateryear_day = 
+           if_else(Day >= 275, Day - 274, Day + 92)) %>%
   select(waterYear, cfs, wateryear_day, Date) %>% 
   group_by(waterYear) %>% 
   mutate(max_day = max(cfs)) %>% 
@@ -1029,7 +1030,8 @@ peakFlow <- peakFlow_days(Daily)
   
 theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
                    site = site, 
-                   Xlab = "Water Year", Ylab = "Days Since October 1st", 
+                   Xlab = "Water Year", 
+                   Ylab = "Days Since October 1st", 
                    legend_loc = "topright")  
 
 ```
