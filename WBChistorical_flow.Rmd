@@ -650,6 +650,23 @@ knitr::kable(flow_percentiles, format ="html", booktabs=TRUE, longtable = TRUE, 
 ## 2.2 Historical Flow Hydrograph
 
 The below hydrograph displays the current year vs. the mean, 25th, and 75th percentiles from the entire record.
+```{r NPS-theme}
+windowsFonts("Frutiger LT Std 55 Roman" = 
+               windowsFont("Frutiger LT Std 55 Roman"))
+
+fontsize <- 20
+nps_font <- "Frutiger LT Std 55 Roman"
+nps_theme2 <- function(base_size = fontsize, 
+                       base_family=nps_font,
+                       title = T) {
+  theme_classic(base_size = base_size, base_family = nps_font) %+replace%
+    theme(axis.text.x = element_text(family=nps_font, size = base_size * 0.8),
+          complete = TRUE
+    ) 
+} #in each ggplot figure where you want nps fonts add this to your ggplot code " + nps_theme2()"
+
+
+```
 
 ```{r Historical-Hydrograph, echo=FALSE, message=FALSE, warning=FALSE}
 Daily$Year <- trunc(Daily$DecYear)
@@ -701,32 +718,19 @@ annual_calendar %>%
   geom_line() +
   geom_smooth(color = "green", se = F) +
   geom_point() +
-  theme_bw() +
   labs(x="Calendar Year", 
-       y="Discharge Sum (cfs)", 
-       title=paste0("Annual Hydrograph \n for ", siteName)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.title = element_text(size=14),
-        legend.text = element_text(size=10),
-        legend.title.align=0.5)
+       y="Discharge Sum (cfs)") +
+  nps_theme2()
+
 
 annual_wateryear %>% 
   ggplot(aes(x=waterYear, y = sum_cfs)) +
   geom_line() +
   geom_smooth(color = "green", se = F) +
   geom_point() +
-  theme_bw() +
   labs(x="Water Year", 
-       y="Discharge Sum (cfs)", 
-       title=paste0("Annual Hydrograph \n for ", siteName)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.title = element_text(size=14),
-        legend.text = element_text(size=10),
-        legend.title.align=0.5)
+       y="Discharge Sum (cfs)") +
+  nps_theme2()
 
 ```
 
@@ -743,14 +747,8 @@ Daily %>% ggplot(aes(x = P, y = cfs))+
   scale_y_log10()+
   theme_bw() + 
   labs(x="% Time Flow equal or exceeded", 
-       y= "Discharge (cfs)", 
-       title=paste0("Flow Duration Curve for \n", siteName)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.title = element_text(size=14),
-        legend.text = element_text(size=10),
-        legend.title.align=0.5) 
+       y= "Discharge (cfs)") +
+  nps_theme2()
 ```
 
 # 3. EGRET Discharge Plots for Water Year (October 1st - September 30th)
@@ -859,19 +857,10 @@ istat_results <- left_join(istat_results, istat_table, by = "discharge_stat")
 ```{r istat-summary, echo=FALSE}
 istat_results %>% 
   ggplot(aes(x=`Discharge Statistic Name`, y=slope)) +
-  geom_segment( aes(x=`Discharge Statistic Name`, xend=`Discharge Statistic Name`, 
-                    y=0, yend=slope), color="skyblue") +
-  geom_point( color="blue", size=4, alpha=0.6) +
-  theme_light() +
-  coord_flip() +
-  labs(x="Discharge statistic name", y="Slope (cfs/year)")
-
-istat_results %>% 
-  ggplot(aes(x=`Discharge Statistic Name`, y=slope)) +
   geom_col() +
-  theme_light() +
   coord_flip() +
-  labs(x="Discharge statistic name", y="Slope (cfs/year)")
+  labs(x="Discharge statistic name", y="Slope (cfs/year)") +
+  nps_theme2()
 
 ```
 
@@ -1111,8 +1100,11 @@ peakFlow_days <- function(Daily){
 }
 
 peakFlow <- peakFlow_days(Daily) %>% 
-  mutate(month = (as.numeric(format(Date, "%m"))))
-
+  mutate(month = (as.numeric(format(Date, "%m")))) %>% 
+  mutate(Season = 
+           if_else(month >= 7 & month <= 9, "Monsoon", "Other"))
+peakFlow$month <-  month.name[peakFlow$month] %>% 
+  factor(levels=paste(month.name))
   
 theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
                    site = site, 
@@ -1126,16 +1118,26 @@ theil_sen <- senth(peakFlow$Year, peakFlow$Day,
                    legend_loc = "topright")  
 
 peakFlow %>% 
-  ggplot(aes(x=waterYear, y=wateryear_day, color=month)) +
-  geom_point()
-
-peakFlow %>% 
-  ggplot(aes(x=Year, y=Day, color=month)) +
-  geom_point()
-
-peakFlow %>% 
-  ggplot(aes(x=waterYear, y=month, color=month, size=cfs)) +
+  ggplot(aes(x=waterYear, y=wateryear_day, color=Season)) +
   geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  scale_color_brewer(palette = "Paired") +
+  labs(x="Water Year", y="Days since October 1st") +
+  nps_theme2() 
+
+peakFlow %>% 
+  ggplot(aes(x=waterYear, y=wateryear_day, color=month)) +
+  geom_point() +
+  labs(x="Water Year", y="Days since October 1st") +
+  nps_theme2()
+
+peakFlow %>% 
+  ggplot(aes(x=waterYear, y=cfs, color=Season)) + 
+  geom_smooth(method = "lm", se = F) +
+  labs(x="Water Year", y="Peak Flow (cfs)") +
+  scale_color_brewer(palette = "Paired") +
+  geom_point() +
+  nps_theme2()
 
 
 ```
