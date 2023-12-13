@@ -6,6 +6,7 @@ library(rmarkdown)
 # Read in projections ---------------------------------------------------------
 projections <- read_csv("daily_df.csv") # read in daily with all models
 projections$daily_cfs <- projections$total*35.31467*(287.4887/86.4) # mm to cfs
+  # mm to cfs for WBC = 117.5066, cfs to mm = 0.00851016
   # get rid of the Miroc gcm, mutate the model string.
 projections <- projections %>% 
   filter(gcm != "MIROC-ESM-CHEM_85") %>%

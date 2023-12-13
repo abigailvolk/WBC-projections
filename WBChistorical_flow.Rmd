@@ -603,7 +603,7 @@ AddedSites <- matrix(c("SNR1", "13010065", "1984-10-01", "", "Snake River at Fla
                        "SHR" , "06285100", "1966-10-01", "", "Shoshone River near Lovell, WY",
                        "BHR1", "06287000", "1968-10-01", "", "Bighorn River near St. Xavier, MT",
                        "BHR2", "06279500", "1929-04-01", "", "Bighorn River at Kane, WY",
-                       "WBC", "09505200", "", "", "Wet Beaver Creek near Rimrock, AZ",
+                       "WBC", "09505200", "", "2022-10-01", "Wet Beaver Creek near Rimrock, AZ",
                        "RWC", "11460151", "", "", "Redwood Creek at Hwy 1 Bridge Muir Beach, CA"),
                      ncol = 5, byrow = TRUE)
 
@@ -699,38 +699,60 @@ Annual hydrographs (annual discharge sum) for both the calendar year and watre y
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 annual_calendar <- Daily %>% 
-  select(Year, cfs) %>% 
-  filter(Year <= 2023) %>% 
+  select(Year, cfs, Date) %>% 
+  mutate(mm = cfs*0.00851016) %>% 
   group_by(Year) %>% 
   summarize(frequency = n(),
-            sum_cfs = sum(cfs)) %>% 
+            mean_cfs = mean(cfs),
+            sum_mm = sum(mm)) %>% 
   filter(frequency > 250)
 annual_wateryear <- Daily %>% 
-  select(waterYear, cfs) %>% 
+  select(waterYear, cfs, Date) %>% 
+  mutate(mm = cfs*0.00851016) %>% 
   group_by(waterYear) %>% 
   summarize(frequency = n(),
-            sum_cfs = sum(cfs)) %>% 
+            mean_cfs = mean(cfs),
+            sum_mm = sum(mm)) %>% 
     filter(frequency > 250)
 
 
 annual_calendar %>% 
-  ggplot(aes(x=Year, y = sum_cfs)) +
+  ggplot(aes(x=Year, y = mean_cfs)) +
   geom_line() +
   geom_smooth(color = "green", se = F) +
   geom_point() +
   labs(x="Calendar Year", 
-       y="Discharge Sum (cfs)") +
+       y="Discharge Mean (cfs)") +
   nps_theme2()
 
+annual_calendar %>% 
+  ggplot(aes(x=Year, y = sum_mm)) +
+  geom_line() +
+  geom_smooth(color = "green", se = F) +
+  geom_point() +
+  labs(x="Calendar Year", 
+       y="Discharge Sum (mm)") +
+  nps_theme2()
 
 annual_wateryear %>% 
-  ggplot(aes(x=waterYear, y = sum_cfs)) +
+  ggplot(aes(x=waterYear, y = mean_cfs)) +
   geom_line() +
   geom_smooth(color = "green", se = F) +
   geom_point() +
   labs(x="Water Year", 
-       y="Discharge Sum (cfs)") +
+       y="Discharge Mean (cfs)") +
   nps_theme2()
+
+annual_wateryear %>% 
+  ggplot(aes(x=waterYear, y = sum_mm)) +
+  geom_line() +
+  geom_smooth(color = "green", se = F) +
+  geom_point() +
+  labs(x="Water Year", 
+       y="Discharge Sum (mm)") +
+  nps_theme2()
+
+
 
 ```
 
