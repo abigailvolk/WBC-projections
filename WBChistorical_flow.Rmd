@@ -13,19 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 1. Setup
 
-## 1.1 Site Selection
-
-Add the target water body abbreviation for the site of interest. This Rmd is currently set up for all of the GRYN sites, but adding any USGS stream gage sites by adding a row with the site info into the `AddedSites` matrix below.
-
-*REQUIRED*: Manually enter the abbreviation for the GRYN site of interest. Options are SNR1, SNR2, YRCS, LMR, MDR, SBC, SHR, BHR1, and BHR2.
-
-```{r SiteSelection}
-#### MANUALLY Identify which siteID you want to use:
-site <- "WBC"
-#site <- params$ID
-```
-
-## 1.2 Load Packages
+## 1.1 Load Packages
 
 First install and load the packages for analysis (they are all cited in the references). The following packages are required: `dataRetrieval` which will access the stream gage data available on NWIS and `EGRET` which will support the flow graphing/trend line functions. The `flowTrends.R` script is adapted from Hirsch, R.M., 2018 (updated 2023) "Daily Streamflow Trend Analysis." The `tidyverse` contains `dplyr` (part of the tidyverse) which will filter out provisional values in Section 1.4 if this is desired for the analysis. It also contaisn `ggplot` and other supporting packages for visualization. `rkt` runs the Mann-Kendall tests with `zyp` to adjust for serial correlation (code from Hirsch, R.M., 2018). `quantreg` enables the quantile regressions on daily discharges (should not be used for reports, but saved for reference on what not to run). The other packages are for formatting. The below chunk will check to see if you have these packages on your OS. If you do not, it will install the packages you do not have. It then loads all of them. The packages are cited in the references.
 
@@ -585,26 +573,20 @@ plot15cfs <- function (eList, yearStart, yearEnd)
 
 ```
 
-## 1.3 Set up GRYN Site Matrix for Ease of Re-using this .Rmd
+## 1.2 Set up Matrix with Site Info
 
-Now let's get ready to make an EGRET object. For ease of quickly reusing this Rmd for different sites, a matrix of the GRYN sites has been created. The final chunk indexes the matrix by the site abbreviation entered in the first code chunk above and saves the corresponding info for setting up the EGRET object. No start/end dates are provided in the matrix because EGRET automatically will add start/end dates from the record the stream gage discharge data if none are provided. This will keep the data as current as possible each time the code is run.
 
-*OPTIONAL*: As stated above, other non-GRYN sites could easily be manually added to the AddedSites matrix below the last entry.
+```{r SiteSelection}
+#### MANUALLY Identify which siteID you want to use:
+site <- "WBC"
+```
+
+Now let's get ready to make an EGRET object. For ease of quickly reusing this Rmd for different sites, a matrix with the site info has been created. The final chunk indexes the matrix by the site abbreviation entered in the first code chunk above and saves the corresponding info for setting up the EGRET object. No start/end dates are provided in the matrix because EGRET automatically will add start/end dates from the record the stream gage discharge data if none are provided. This will keep the data as current as possible each time the code is run.
 
 ```{r SiteID, include=FALSE}
 StreamGageMatrix <- matrix(nrow = 0, ncol = 5, dimnames = list(NULL, c("Site", "GageID", "StartDate","EndDate", "SiteName")))
 #                    "SiteID",   "GageID",  "StartDate",    "EndDate", "SiteName",
-AddedSites <- matrix(c("SNR1", "13010065", "1984-10-01", "", "Snake River at Flagg, WY",
-                       "SNR2", "13013650", "1995-10-01", "", "Snake River at Moose, WY",
-                       "YRCS", "06191500", "1911-01-01", "", "Yellowstone River at Corwin Springs",
-                       "LMR" , "06188000", "1923-10-01", "", "Lamar River near Tower Junction, WY",
-                       "MDR" , "06037500", "1914-10-01", "", "Madison River near West Yellowstone, MT",
-                       "SBC" , "06187915", "1999-10-01", "", "Soda Butte Creek near Silver Gate, MT",
-                       "SHR" , "06285100", "1966-10-01", "", "Shoshone River near Lovell, WY",
-                       "BHR1", "06287000", "1968-10-01", "", "Bighorn River near St. Xavier, MT",
-                       "BHR2", "06279500", "1929-04-01", "", "Bighorn River at Kane, WY",
-                       "WBC", "09505200", "", "2022-10-01", "Wet Beaver Creek near Rimrock, AZ",
-                       "RWC", "11460151", "", "", "Redwood Creek at Hwy 1 Bridge Muir Beach, CA"),
+AddedSites <- matrix(c("WBC", "09505200", "", "2022-10-01", "Wet Beaver Creek near Rimrock, AZ"),
                      ncol = 5, byrow = TRUE)
 
 
@@ -613,7 +595,7 @@ StreamGageMatrix <- data.frame(StreamGageMatrix)
 SpecificGageInfo <- subset(StreamGageMatrix, Site == site)
 ```
 
-## 1.4 Set up EGRET object
+## 1.3 Set up EGRET object
 
 The next code chunk prepares the gage ID and site name based on the abbreviation you manually entered in Section 1.1. Then, the dataRetrieval package reads in the `Daily` stream gage data available online from NWIS! Next, it will read in the info available for this gage, also from NWIS (`INFO`). Currently, the argument `interactive = FALSE` is used to avoid being prompted by the program to enter the info interactively.
 
@@ -632,8 +614,6 @@ eList <- as.egret(INFO, Daily, NA, NA)
 eList <- setPA(eList, paStart = 10, paLong = 12)
 flow_percentiles <- flowDuration(eList, qUnit = 1)
 Daily$cfs <- Daily$Q*35.314666212661
-print(min(Daily$Date))
-print(max(Daily$Date))
 ```
 
 # 2. Historical Flow
@@ -650,7 +630,7 @@ knitr::kable(flow_percentiles, format ="html", booktabs=TRUE, longtable = TRUE, 
 ## 2.2 Historical Flow Hydrograph
 
 The below hydrograph displays the current year vs. the mean, 25th, and 75th percentiles from the entire record.
-```{r NPS-theme}
+```{r NPS-theme, echo=FALSE, message=FALSE, warning=FALSE}
 windowsFonts("Frutiger LT Std 55 Roman" = 
                windowsFont("Frutiger LT Std 55 Roman"))
 
@@ -684,12 +664,9 @@ historical_stats %>% ggplot(aes(x=Day)) +
   geom_line(aes(y=`50%`, color="Median"), lwd=1) +
   geom_line(aes(y=Mean, color="Mean"), lwd=1) +
   theme_bw() + 
-  labs(x="Days Since January 1st", y="Discharge (cfs)", title=paste0("Historical Hydrograph \n for ", siteName, " (1961-2023)")) +
-  theme(plot.title = element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"), 
-        legend.text = element_text(size=10),
-        legend.title = element_blank()) +
+  labs(x="Days Since January 1st", y="Discharge (cfs)") +
+  nps_theme2() +
+  theme(legend.title=element_blank()) +
   scale_color_manual(values = c("Mean" = "orange", "Median" = "black"))
 
 
@@ -1096,16 +1073,6 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 ```
 
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-peakFlow_instantaneous <- readNWISpeak(siteID, startDate=startDate, endDate=endDate)
-
-peakFlow <- peakFlow %>% drop_na(peak_dt)
-peakFlow$Day <- as.numeric(format(peakFlow$peak_dt, "%j"))
-peakFlow$WaterYear <- wtr_yr(peakFlow$peak_dt)
-peakFlow$Year <- as.numeric(format(peakFlow$peak_dt, "%Y"))
-theil_sen <- senth(peakFlow$WaterYear, peakFlow$Day, site = site, Xlab = "Year", Ylab = "Days Since January 1st", legend_loc = "topright")
-```
-
-```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
 peakFlow_days <- function(Daily){
   Daily %>% 
   mutate(wateryear_day = 
@@ -1132,12 +1099,7 @@ theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day,
                    site = site, 
                    Xlab = "Water Year", 
                    Ylab = "Days Since October 1st", 
-                   legend_loc = "topright")  
-theil_sen <- senth(peakFlow$Year, peakFlow$Day, 
-                   site = site, 
-                   Xlab = "Calendar Year", 
-                   Ylab = "Days Since January 1st", 
-                   legend_loc = "topright")  
+                   legend_loc = "topright") 
 
 peakFlow %>% 
   ggplot(aes(x=waterYear, y=wateryear_day, color=Season)) +
@@ -1267,45 +1229,7 @@ Daily %>% ggplot(aes(cfs))+
 
 ```
 
-## 7.2 SHOULD NOT BE USED: Quantile Regression Plots for the Daily Discharge
-
-UPDATE: **Quantile regression should NOT be used for daily discharges**. Quantile regression on the daily discharge record was originally used to analyze trends in different quantiles of the data, but upon personal communication with Dr. Tom Over and Dr. Bob Hirsch from USGS, this method should not be used. Quantile-Kendall (visualized previously in the script) is the better option. Daily time series data like this often suffers from high autocorrelation. Autocorrelation occurs when values close together in time (one day to the next day) are highly correlated. This violates assumptions of independence and can lead to deceivingly low p-values. Daily discharge values are not independent. It seems fairly obvious that in times of high flow, there will generally be consistent high flow one day to the next, and in times of low flow, there will be consistent low flow from one day to the next. Additionally, it is more physically meaningful to consider discharge data from an annual standpoint (consider a year as a "sample" or realization), rather than a daily perspective (considering each day as a separate "sample" or realization).
-
-Below, the autocorrelation at lags up to 100 is shown. A lag is a difference in time step between the original data and the lagged. In this case, a lag of one would indicate daily discharge data separated by one day. The autocorrelation is calculated by regressing the lagged data with the original.
-
-```{r acf, echo=FALSE}
-acf(Daily$cfs, lag.max = 100, na.action = na.pass)
-```
-
-The original quantile regression code is left below FOR RECORD KEEPING PURPOSES ONLY.
-
-Quantile regression (Cade & Noon, 2003) is often a good option for analyzing whether certain quantiles of data are changing over time. There are instances when there aren't clear trends in the mean over time when OLS regression is used, but a scatter plot might imply trends over time in the top 95% or the bottom 5% of the data, or even in the median. Quantile regression does not make assumptions about the distribution of the dependent variable and can resist outliers (common in hydrological data). Below is the code to display the daily discharges over the full time record with the corresponding quantile regression trend lines (0.05, 0.25, 0.5, 0.75, 0.95) compared to a linear least squares regression. NOTE: linear regression generally does not work for this type of data because the data is non-normal. Discharge data is generally heavily skewed right because the minimums are generally zero while maximums can be quite large. This leads to unequal variances in the residuals.
-
-```{r Quantile-Plots, echo=FALSE}
-plot(Daily$Date, Daily$cfs, cex=.25, xlab="Date", ylab="Discharge (cfs)",
-     main = site,
-     cex.axis = 1.25, cex.main = 1.5, cex.lab = 1.25, col = "darkgray")
-abline(rq(Daily$cfs~Daily$Date,tau=.5),col="blue", lwd = 3)
-abline(rq(Daily$cfs~Daily$Date,tau=.25),col="red", lwd = 3)
-abline(rq(Daily$cfs~Daily$Date,tau=.75),col="green", lwd = 3)
-abline(rq(Daily$cfs~Daily$Date,tau=.95),col="orange", lwd = 3)
-abline(rq(Daily$cfs~Daily$Date,tau=.05),col="brown", lwd = 3)
-abline(lm(Daily$cfs~Daily$Date), col ="black", lwd = 3, lty = 2)
-legend("topleft", legend = c("Median", "25%", "75%", "Upper 95%", "Lower 5%", "Linear Regression"),
-       col = c("blue", "red", "green", "orange", "brown", "black"), cex = 0.75, lwd = 3, lty = c(1, 1, 1, 1, 1, 2))
-```
-
-Below, we can see if any of the quantile regressions plotted above (0.05, 0.25, 0.5, 0.75, 0.95) are statistically significant. This code will print out the results summary for the following quantiles: 5, 25, 50, 75, and 95th, and then finally the OLS regression. Below each instance of the word `Coefficients`, there are rows titled `Daily$Date`. This row gives us the slope estimate, `Estimate`, and p-value, `Pr(>|t|)`. ***It is likely that the p-values will be VERY small, because autocorrelation is impacting the results.***
-
-```{r Quantile-Regression, echo=FALSE}
-# Assessment of fit at various Tau values
-tau = c(0.05, 0.25, 0.5, 0.75, 0.95) # quantiles are 5, 25, 50, 75, and 95th 
-
-rq(Daily$cfs~Daily$Date, tau = tau)
-summary(lm(Daily$cfs~Daily$Date))
-```
-
-## 7.3 Saving Data from this Rmd as CSVs
+## 7.2 Saving Data from this Rmd as CSVs
 
 ```{r save-csvs, include=FALSE}
 # path <- file.path("C:/Users/avolk/Code_Output", site)
