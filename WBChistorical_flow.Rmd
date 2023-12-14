@@ -21,7 +21,7 @@ First install and load the packages for analysis (they are all cited in the refe
 # List of packages to check and install
 packages <- c("dataRetrieval", "EGRET", "quantreg", "tidyverse", 
               "rkt", "zyp", "lubridate", "kableExtra", "scales",
-              "broom")
+              "broom", "mblm")
 not_installed <- packages[!(packages %in% installed.packages()[ , "Package"])]    # 
 if(length(not_installed)) install.packages(not_installed)
 # Load packages
@@ -858,8 +858,9 @@ istat_results %>%
   ggplot(aes(x=`Discharge Statistic Name`, y=slope)) +
   geom_col() +
   coord_flip() +
-  labs(x="Discharge statistic name", y="Slope (cfs/year)") +
-  nps_theme2()
+  labs(x="Discharge statistic", y="Slope (cfs/year)") +
+  nps_theme2() +
+  scale_y_continuous(breaks = seq(-0.02, 0, by = 0.005))
 
 ```
 
@@ -1073,7 +1074,28 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 ```
 
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-peakFlow_days <- function(Daily){
+getpeakflow_days_season <- function(Daily){
+  peak <- Daily %>% 
+  mutate(wateryear_day = 
+           if_else(Day >= 275, Day - 274, Day + 92)) %>%
+  group_by(waterYear) %>% 
+  mutate(frequency = n()) %>% 
+  filter(frequency > 250) %>% 
+  ungroup() %>% 
+  select(Day, Year, waterYear, cfs, wateryear_day, Date) %>% 
+  mutate(month = (as.numeric(format(Date, "%m")))) %>% 
+  mutate(season = 
+           if_else(month >= 7 & month <= 9, "Monsoon", "Other")) %>% 
+  group_by(season, waterYear) %>% 
+  mutate(max_cfs = max(cfs)) %>% 
+  filter(cfs == max_cfs)
+  
+  peak$month <-  month.name[peak$month] %>% 
+    factor(levels=paste(month.name))
+  return(peak)
+}
+
+getpeakflow_days <- function(Daily){
   Daily %>% 
   mutate(wateryear_day = 
            if_else(Day >= 275, Day - 274, Day + 92)) %>%
@@ -1084,42 +1106,41 @@ peakFlow_days <- function(Daily){
   select(Day, Year, waterYear, cfs, wateryear_day, Date) %>% 
   group_by(waterYear) %>% 
   mutate(max_day = max(cfs)) %>% 
-  filter(cfs == max_day) %>% 
-  select(!max_day)
+  filter(cfs == max_day)
 }
 
-peakFlow <- peakFlow_days(Daily) %>% 
-  mutate(month = (as.numeric(format(Date, "%m")))) %>% 
-  mutate(Season = 
-           if_else(month >= 7 & month <= 9, "Monsoon", "Other"))
-peakFlow$month <-  month.name[peakFlow$month] %>% 
-  factor(levels=paste(month.name))
-  
-theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
+sen <- function(..., weights = NULL) {
+  mblm::mblm(...)
+}
+
+peakflow <- getpeakflow_days(Daily)
+peakflow_season <- getpeakflow_days_season(Daily)
+
+theil_sen <- senth(peakflow$waterYear, peakflow$wateryear_day, 
                    site = site, 
                    Xlab = "Water Year", 
                    Ylab = "Days Since October 1st", 
                    legend_loc = "topright") 
 
-peakFlow %>% 
-  ggplot(aes(x=waterYear, y=wateryear_day, color=Season)) +
+peakflow_season %>% 
+  ggplot(aes(x=waterYear, y=wateryear_day, color=season)) +
   geom_point() +
-  geom_smooth(method = "lm", se = F) +
+  geom_smooth(method = sen, se = F) +
   scale_color_brewer(palette = "Paired") +
   labs(x="Water Year", y="Days since October 1st") +
   nps_theme2() 
 
-peakFlow %>% 
+peakflow_season %>% 
   ggplot(aes(x=waterYear, y=wateryear_day, color=month)) +
   geom_point() +
   labs(x="Water Year", y="Days since October 1st") +
   nps_theme2()
 
-peakFlow %>% 
-  ggplot(aes(x=waterYear, y=cfs, color=Season)) + 
-  geom_smooth(method = "lm", se = F) +
+peakflow_season %>% 
+  ggplot(aes(x=waterYear, y=cfs, color=season)) + 
+  geom_smooth(method = sen, se = F) +
   labs(x="Water Year", y="Peak Flow (cfs)") +
-  scale_color_brewer(palette = "Paired") +
+  scale_color_manual(values = c("black", "orange")) +
   geom_point() +
   nps_theme2()
 
@@ -1136,25 +1157,13 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
   kable_styling(latex_options=c("hold_position", "repeat_header"), full_width = F)
 ```
 
-## 5.2 Ordinary Least Squares Regression Assumptions and Statistics
-
-The below plots are to check assumptions on the OLS model to see if it is appropriate for peak flow. Plot 1: Checks linearity. Ensure that there is not a relationship between the residuals and the fitted values for our peak flow vs. year linear model. The points should all be evenly spaced around zero, and there should not be an obvious relationship in them (no curves, fanning out on either side, etc). Plot 2: Normal Q-Q is used to check data normality. The residuals should follow the straight dashed line. Plot 3: Scale-location can be used to check for homogeneity of the residuals' variances. Should be relatively flat line with equally spread points. Plot 4: Checks for outliers and influential points. If there are points outside of the red hashed lines (these may not show up if no points are influential), they impact the OLS model.
+## 5.2 Ordinary Least Squares Regression 
 
 ```{r PeakFlow-Residuals, echo=FALSE}
 lm_peak <- lm(peakFlow$wateryear_day~peakFlow$waterYear)
-plot(peakFlow$waterYear, peakFlow$wateryear_day, cex.lab=1.25, xlab = "Year", ylab = "Day of the Year", 
-     main = paste0("Date of Peak Flow for ", site),
-    cex.axis = 1.25, cex.main = 1.5, cex.lab = 1.25, col = "darkgray")
-abline(lm_peak,col="blue", lwd =3)
-plot(lm_peak)
-```
-
-
-Finally, a significant trend in the OLS peak flow vs. year (i.e. is the trend line fit above in dashed statistically significant). Below the word `Coefficients`, there is a row titled `peakFlow$year`. This row gives the slope estimate, `Estimate`, and p-value, `Pr(>|t|)`. If the value of `Pr(>|t|)` for peakFlow\$year is less than 0.05, this suggests that it is highly likely there is a trend in peak flow.
-
-```{r PeakFlow-Stats, echo=FALSE}
 summary(lm_peak)
 ```
+
 
 # 6. References
 
