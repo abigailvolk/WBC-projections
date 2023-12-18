@@ -22,48 +22,66 @@ nps_theme2 <- function(base_size = fontsize,
 #### Read in Projections csv and historical measured #### -------------------
 
 projections <- read_csv("daily_df.csv") # read in daily with all models
+projections <- projections %>% 
+  mutate(daily_cfs = total*35.31467*(287.4887/86.4),
+         mo = as.numeric(mo),
+         waterYear = if_else(mo >= 10, yr + 1, yr),
+         leap = leap_year(date),
+         day = as.numeric(format(date, "%j")),
+         day = if_else(leap == F & day >= 60, day + 1, day)) %>%
+  select(date, day, daily_cfs, waterYear, yr, mo, gcm, rcp)
+  
 Daily <- readNWISDaily("09505200","00060", "", "2022-10-01")
-test <- as_tibble(Daily) %>% 
-  mutate(cfs = Q*35.314666212661) %>% 
-  select()
+Daily <- Daily %>% 
+  mutate(daily_cfs = Q*35.314666212661,
+         yr = as.numeric(format(Date, "%Y")),
+         mo = as.numeric(format(Date, "%m")),
+         gcm = "Historical",
+         rcp = "Measured") %>% 
+  rename(date = Date,
+         day = Day) %>% 
+  select(date, day, daily_cfs, waterYear, yr, mo, gcm, rcp) %>% 
+  as_tibble()
+
+daily_proj_meas <- bind_rows(Daily, projections)
+
+# write.csv(daily_proj_meas, "daily_proj_meas.csv")
+
+### FIX BELOW IN OTHER PLACES
+daily_proj_meas <- daily_proj_meas %>% 
+  filter(gcm != "MIROC-ESM-CHEM_85") 
+
+daily_proj_meas <-  daily_proj_meas %>%
+  filter(rcp != "Hist") %>% 
+  mutate(time_period = case_when(yr <= 2022 ~ 'Historical',
+                            yr > 2022 & yr <= 2050 ~ 'Early',
+                            yr > 2050 & yr <= 2070 ~ 'Middle',
+                            yr > 2070 ~ 'Late'))
+
+rcp_day_summary <- daily_proj_meas %>% 
+  group_by(day, rcp, time_period) %>% 
+  summarize(mean = mean(daily_cfs),
+            median = median(daily_cfs))
+
+rcp_day_futures <- rcp_day_summary %>% 
+  filter(rcp != "Measured")
+
+rcp_day_futures$time_period <- factor(as.factor(rcp_day_futures$time_period),
+                                      levels = c("Early", "Middle", "Late"))
+
+rcp_day_hist <- rcp_day_summary %>% 
+  filter(rcp == "Measured") %>% 
+  select(!time_period)
 
 
-#### Wrangle Projections #### -------------------------------------------------
-
-
-projections$daily_cfs <- projections$total*35.31467*(287.4887/86.4) # mm to cfs
-
-# mm to cfs for WBC = 117.5066, cfs to mm = 0.00851016
-# get rid of the Miroc gcm, mutate the model string.
-projections <- projections %>% 
-  filter(gcm != "MIROC-ESM-CHEM_85") %>%
-  mutate(model = str_c(gcm, '_', rcp))
-
-projections$Day <- yday(projections$date) # should use EGRET instead, but this is temporary
-projections <- projections %>% 
-  rename(Year = yr,
-         cfs = daily_cfs)
-
-cfs_historical <- projections %>% 
-  mutate(time_period = case_when(Year <= 2022 ~ 'low',
-                            points < 25 ~ 'med',
-                            points < 35 ~ 'high'))
-
-  group_by(Day, rcp) %>% 
-  summarize(mean = mean(cfs),
-            median = median(cfs)) 
-
-  
-  
 #### Plotting Hydrographs ####  
-  
 
-cfs_historical %>% ggplot(aes(x=Day, color=rcp)) +
-  geom_smooth(aes(y=mean), se=F, span=0.2) +
+ggplot(rcp_day_hist, mapping = aes(x = day, y=mean, color=rcp)) +
+  geom_smooth(color = "black", se=F, span=0.2) +
+  facet_wrap(~time_period, ncol = 1) +
+  geom_smooth(rcp_day_futures, mapping = aes(x = day, y=mean, color=rcp), se=F, span=0.2) +
   theme_bw() + 
   labs(x="Days Since January 1st", y="Discharge (cfs)") +
   theme(legend.title=element_blank()) +
-  scale_color_manual(values = c("orange","red",  "black")) +
-  nps_theme2()
-  
-
+  scale_color_manual(values = c("orange","red")) +
+  nps_theme2() 
