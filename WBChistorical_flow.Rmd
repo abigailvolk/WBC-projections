@@ -1110,7 +1110,7 @@ getpeakflow_days <- function(Daily){
 }
 
 sen <- function(..., weights = NULL) {
-  mblm::mblm(...)
+  mblm::mblm(repeated = F, ...)
 }
 
 peakflow <- getpeakflow_days(Daily)
@@ -1156,11 +1156,27 @@ if (is.numeric(senth_stats[5])){
 knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, caption = paste0("Theil-Sen P-value, Coefficients, and Confidence Interval Limits for ", siteName), col.names = c("P-value", "Slope", "Estimated Change per Century (number of days)", "Intercept", "Lower Confidence Limit", "Upper Confidence Limit")) %>% 
   kable_styling(latex_options=c("hold_position", "repeat_header"), full_width = F)
 ```
+```{r}
+function(peakflow_season) {
+  monsoon <- peakflow_season %>% 
+    filter(season == "Monsoon")
+  other <- peakflow_season %>% 
+    filter(season == "Other")
+  
+  
+  
+  monsoon_day <- mblm::mblm(wateryear_day ~ waterYear, monsoon, repeated = T)$coefficients
+  other_day <- mblm::mblm(wateryear_day ~ waterYear, other, repeated = F)$coefficients
+  monsoon_magnitude <- mblm::mblm(cfs ~ waterYear, monsoon, repeated = F)$coefficients
+  other_magnitude <- mblm::mblm(cfs ~ waterYear, other, repeated = F)$coefficients
+
+}
+```
 
 ## 5.2 Ordinary Least Squares Regression 
 
-```{r PeakFlow-Residuals, echo=FALSE}
-lm_peak <- lm(peakFlow$wateryear_day~peakFlow$waterYear)
+```{r PeakFlow-lm, echo=FALSE}
+lm_peak <- lm(peakflow$wateryear_day~peakflow$waterYear)
 summary(lm_peak)
 ```
 

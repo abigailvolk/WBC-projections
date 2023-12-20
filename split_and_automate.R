@@ -56,7 +56,7 @@ for (i in models) {
                     output_dir = file.path(working_path, i))
 }
 
-#write.csv(projection_results, "v5_projectionresults.csv", row.names = F)
+write.csv(projection_results, "v7_projectionresults.csv", row.names = F)
 
 
 # Some graphs here ------------------------------------------------------------
