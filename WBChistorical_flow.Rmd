@@ -1157,20 +1157,22 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
   kable_styling(latex_options=c("hold_position", "repeat_header"), full_width = F)
 ```
 ```{r}
-function(peakflow_season) {
-  monsoon <- peakflow_season %>% 
-    filter(season == "Monsoon")
-  other <- peakflow_season %>% 
-    filter(season == "Other")
-  
-  
-  
-  monsoon_day <- mblm::mblm(wateryear_day ~ waterYear, monsoon, repeated = T)$coefficients
-  other_day <- mblm::mblm(wateryear_day ~ waterYear, other, repeated = F)$coefficients
-  monsoon_magnitude <- mblm::mblm(cfs ~ waterYear, monsoon, repeated = F)$coefficients
-  other_magnitude <- mblm::mblm(cfs ~ waterYear, other, repeated = F)$coefficients
-
+get_model_info <- function(data, response_var, predictor_var) {  
+    model <- mblm::mblm(as.formula(paste(response_var, "~", predictor_var)), data, repeated = FALSE)  
+    corout <- cor.test(data[[predictor_var]], data[[response_var]],                     
+                       alternative = "two.sided", method = "kendall", continuity = TRUE)  
+    return(list(slope = coefficients(model)[2], p_value = corout$p.value))
+  } 
+seasons <- c("Monsoon", "Other")
+models <- list()
+for (i in seq_along(seasons)) {  
+  season_data <- peakflow_season %>% filter(season == seasons[i])  
+  day_info <- get_model_info(season_data, "wateryear_day", "waterYear")  
+  mag_info <- get_model_info(season_data, "cfs", "waterYear")     
+  models[[i * 2 - 1]] <- day_info   
+  models[[i * 2]] <- mag_info
 }
+
 ```
 
 ## 5.2 Ordinary Least Squares Regression 
