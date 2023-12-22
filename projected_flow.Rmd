@@ -1012,27 +1012,77 @@ senth <- function(x, y, conf = 95, site, Xlab = NULL, Ylab = NULL, legend_loc = 
 }
 ```
 
-
 ```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-peakFlow_days <- function(Daily){
+getpeakflow_days_season <- function(Daily){
+  peak <- Daily %>% 
+  mutate(wateryear_day = 
+           if_else(Day >= 275, Day - 274, Day + 92)) %>%
+  group_by(waterYear) %>% 
+  mutate(frequency = n()) %>% 
+  filter(frequency > 250) %>% 
+  ungroup() %>% 
+  select(Day, Year, waterYear, cfs, wateryear_day, Date) %>% 
+  mutate(month = (as.numeric(format(Date, "%m")))) %>% 
+  mutate(season = 
+           if_else(month >= 7 & month <= 9, "Monsoon", "Other")) %>% 
+  group_by(season, waterYear) %>% 
+  mutate(max_cfs = max(cfs)) %>% 
+  filter(cfs == max_cfs)
+  
+  peak$month <-  month.name[peak$month] %>% 
+    factor(levels=paste(month.name))
+  return(peak)
+}
+
+getpeakflow_days <- function(Daily){
   Daily %>% 
   mutate(wateryear_day = 
            if_else(Day >= 275, Day - 274, Day + 92)) %>%
-  select(waterYear, cfs, wateryear_day, Date) %>% 
+  group_by(waterYear) %>% 
+  mutate(frequency = n()) %>% 
+  filter(frequency > 250) %>% 
+  ungroup() %>% 
+  select(Day, Year, waterYear, cfs, wateryear_day, Date) %>% 
   group_by(waterYear) %>% 
   mutate(max_day = max(cfs)) %>% 
-  filter(cfs == max_day) %>% 
-  select(!max_day)
+  filter(cfs == max_day)
 }
 
-peakFlow <- peakFlow_days(Daily)
+sen <- function(..., weights = NULL) {
+  mblm::mblm(repeated = F, ...)
+}
 
-  
-theil_sen <- senth(peakFlow$waterYear, peakFlow$wateryear_day, 
+peakflow <- getpeakflow_days(Daily)
+peakflow_season <- getpeakflow_days_season(Daily)
+
+theil_sen <- senth(peakflow$waterYear, peakflow$wateryear_day, 
                    site = site, 
                    Xlab = "Water Year", 
                    Ylab = "Days Since October 1st", 
-                   legend_loc = "topright")  
+                   legend_loc = "topright") 
+
+peakflow_season %>% 
+  ggplot(aes(x=waterYear, y=wateryear_day, color=season)) +
+  geom_point() +
+  geom_smooth(method = sen, se = F) +
+  scale_color_brewer(palette = "Paired") +
+  labs(x="Water Year", y="Days since October 1st") +
+  nps_theme2() 
+
+peakflow_season %>% 
+  ggplot(aes(x=waterYear, y=wateryear_day, color=month)) +
+  geom_point() +
+  labs(x="Water Year", y="Days since October 1st") +
+  nps_theme2()
+
+peakflow_season %>% 
+  ggplot(aes(x=waterYear, y=cfs, color=season)) + 
+  geom_smooth(method = sen, se = F) +
+  labs(x="Water Year", y="Peak Flow (cfs)") +
+  scale_color_manual(values = c("black", "orange")) +
+  geom_point() +
+  nps_theme2()
+
 
 ```
 
@@ -1046,22 +1096,10 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
   kable_styling(latex_options=c("hold_position", "repeat_header"), full_width = F)
 ```
 
-## 5.2 Ordinary Least Squares Regression Assumptions and Statistics
+## 5.2 Ordinary Least Squares Regression 
 
-The below plots are to check assumptions on the OLS model to see if it is appropriate for peak flow. Plot 1: Checks linearity. Ensure that there is not a relationship between the residuals and the fitted values for our peak flow vs. year linear model. The points should all be evenly spaced around zero, and there should not be an obvious relationship in them (no curves, fanning out on either side, etc). Plot 2: Normal Q-Q is used to check data normality. The residuals should follow the straight dashed line. Plot 3: Scale-location can be used to check for homogeneity of the residuals' variances. Should be relatively flat line with equally spread points. Plot 4: Checks for outliers and influential points. If there are points outside of the red hashed lines (these may not show up if no points are influential), they impact the OLS model.
-
-```{r PeakFlow-Residuals, echo=FALSE}
-lm_peak <- lm(peakFlow$wateryear_day~peakFlow$waterYear)
-plot(peakFlow$waterYear, peakFlow$wateryear_day, cex.lab=1.25, xlab = "Year", ylab = "Day of the Year", 
-     main = paste0("Date of Peak Flow for ", site),
-    cex.axis = 1.25, cex.main = 1.5, cex.lab = 1.25, col = "darkgray")
-abline(lm_peak,col="blue", lwd =3)
-plot(lm_peak)
-```
-
-Finally, a significant trend in the OLS peak flow vs. year (i.e. is the trend line fit above in dashed statistically significant). Below the word `Coefficients`, there is a row titled `peakFlow$year`. This row gives the slope estimate, `Estimate`, and p-value, `Pr(>|t|)`. If the value of `Pr(>|t|)` for peakFlow\$year is less than 0.05, this suggests that it is highly likely there is a trend in peak flow.
-
-```{r PeakFlow-Stats, echo=FALSE}
+```{r PeakFlow-lm, echo=FALSE}
+lm_peak <- lm(peakflow$wateryear_day~peakflow$waterYear)
 summary(lm_peak)
 ```
 
@@ -1083,7 +1121,36 @@ reg_results <- rbind(theil_bind, reg_results)
 projection_results <- rbind(projection_results, reg_results)
 
 
+get_model_info <- function(data, response_var, predictor_var) {  
+    model <- mblm::mblm(as.formula(paste(response_var, "~", predictor_var)), data, repeated = FALSE)  
+    corout <- cor.test(data[[predictor_var]], data[[response_var]],                     
+                       alternative = "two.sided", method = "kendall", continuity = TRUE)  
+    return(list(model = site,
+                slope = coefficients(model)[2],
+                slopepct_mag = (coefficients(model)[2])*100,
+                slopepct_mag_interp = "Estimated Change per Century (number of days or cfs)",
+                p_value = corout$p.value))
+} 
+
+seasons <- c("Monsoon", "Other")
+models <- list()
+for (i in seq_along(seasons)) {  
+  season_data <- peakflow_season %>% filter(season == seasons[i])  
+  day_info <- get_model_info(season_data, "wateryear_day", "waterYear") 
+  day_info$discharge_stat <- paste(seasons[i], ",", "wateryear_day", "~", "waterYear")
+  mag_info <- get_model_info(season_data, "cfs", "waterYear")
+  mag_info$discharge_stat <- paste(seasons[i], ",", "cfs", "~", "waterYear")
+  models[[i * 2 - 1]] <- day_info   
+  models[[i * 2]] <- mag_info
+}
+
+models <- reduce(models, bind_rows) %>% 
+  relocate(model, discharge_stat, slope, slopepct_mag, 
+           slopepct_mag_interp, p_value)
+
+projection_results <- rbind(projection_results, models)
 ```
+
 
 
 # 6. References
