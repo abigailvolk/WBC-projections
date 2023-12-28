@@ -14,7 +14,7 @@ nps_theme2 <- function(base_size = fontsize, base_family=nps_font) {
     )}
 
 #### Read in and Wrangle Projection Results Table ####
-projection_results <- read_csv("v5_EGRETprojectionresults.csv") %>% 
+projection_results <- read_csv("v8_EGRETprojectionresults.csv") %>% 
   separate(model, into = c("model", "rcp"), sep = "_") %>%  # create an RCP column
   filter(model != "MIROC-ESM-CHEM")
 

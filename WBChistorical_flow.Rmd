@@ -670,7 +670,7 @@ annual_calendar <- Daily %>%
   select(Year, cfs, Date) %>% 
   mutate(mm = cfs*0.00851016) %>% 
   group_by(Year) %>% 
-  summarize(frequency = n(),
+  dplyr::summarize(frequency = n(),
             mean_cfs = mean(cfs),
             sum_mm = sum(mm)) %>% 
   filter(frequency > 250)
@@ -678,7 +678,7 @@ annual_wateryear <- Daily %>%
   select(waterYear, cfs, Date) %>% 
   mutate(mm = cfs*0.00851016) %>% 
   group_by(waterYear) %>% 
-  summarize(frequency = n(),
+  dplyr::summarize(frequency = n(),
             mean_cfs = mean(cfs),
             sum_mm = sum(mm)) %>% 
     filter(frequency > 250)

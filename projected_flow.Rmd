@@ -612,7 +612,7 @@ fileName <- "daily_input.csv"
 
 ## 1.4 Set up EGRET object
 
-The next code chunk prepares the gage ID and site name based on the abbreviation you manually entered in Section 1.1. Then, the dataRetrieval package reads in the `Daily` stream gage data available online from NWIS! Next, it will read in the info available for this gage, also from NWIS (`INFO`). Currently, the argument `interactive = FALSE` is used to avoid being prompted by the program to enter the info interactively.
+The next code chunk prepares the gage ID and site name based on the abbreviation you manually entered in Section 1.1. Then, the dataRetrieval package reads in the info available for this gage from NWIS (`INFO`). Currently, the argument `interactive = FALSE` is used to avoid being prompted by the program to enter the info interactively.
 
 *OPTIONAL*: If you only want figures with data that is only USGS approved, the `dplyr::filter` will remove any of the provisional data. ALSO, the arguments within the function `setPA()` can be altered to display a particular season or time period of interest. Currently, `paStart` is set to 10, meaning the record starts in October, and `paLong` is set to 12, meaning that the record will include all 12 months following water year conventions. These values could be changed to 1 and 12 respectively if you want the calendar year summaries (January to December), or 3 and 4 respectively if you wanted March through June, and so on.
 
@@ -629,18 +629,18 @@ Daily$cfs <- Daily$Q*35.314666212661
 ```
 
 
-# 2. Historical Flow
+# 2. Summarized Flow
 
-## 2.1 Historical Flow Percentiles
+## 2.1 Percentiles
 
-The historical percentiles of daily discharge are provided in CFS first to get an idea of the general distribution of the data.
+The percentiles of daily discharge are provided in CFS first to get an idea of the general distribution of the data.
 
 ```{r Historical-Percentiles, echo=FALSE}
 knitr::kable(flow_percentiles, format ="html", booktabs=TRUE, longtable = TRUE, caption = paste0("Flow Percentiles for ", siteName), col.names = c("Discharge (cfs)")) %>% 
   kable_styling(latex_options=c("striped","hold_position", "repeat_header"), full_width = F)
 ```
 
-## 2.2 Historical Flow Hydrograph
+## 2.2 Hydrograph
 
 The below hydrograph displays the the mean and median from the entire record.
 ```{r NPS-theme, echo=FALSE, message=FALSE, warning=FALSE}
@@ -690,18 +690,14 @@ annual_calendar <- Daily %>%
   select(Year, cfs, Date) %>% 
   mutate(mm = cfs*0.00851016) %>% 
   group_by(Year) %>% 
-  summarize(frequency = n(),
-            mean_cfs = mean(cfs),
-            sum_mm = sum(mm)) %>% 
-  filter(frequency > 250)
+  dplyr::summarize(mean_cfs = mean(cfs),
+            sum_mm = sum(mm))
 annual_wateryear <- Daily %>% 
   select(waterYear, cfs, Date) %>% 
   mutate(mm = cfs*0.00851016) %>% 
   group_by(waterYear) %>% 
-  summarize(frequency = n(),
-            mean_cfs = mean(cfs),
-            sum_mm = sum(mm)) %>% 
-    filter(frequency > 250)
+  dplyr::summarize(mean_cfs = mean(cfs),
+            sum_mm = sum(mm))
 
 annual_calendar %>% 
   ggplot(aes(x=Year, y = mean_cfs)) +
@@ -859,16 +855,6 @@ istat_results <- reduce(istat_results, bind_rows)
 projection_results <- rbind(projection_results, istat_results)
 ```
 
-
-```{r istat-summary, echo=FALSE}
-istat_results %>% 
-  ggplot(aes(x=`Discharge Statistic Name`, y=slope)) +
-  geom_col() +
-  coord_flip() +
-  labs(x="Discharge statistic", y="Slope (cfs/year)") +
-  nps_theme2() +
-  scale_y_continuous(breaks = seq(-0.02, 0, by = 0.005))
-```
 
 ## 3.4 Standard Deviation Plot of the Daily Mean (Log)
 
@@ -1150,78 +1136,6 @@ peakflow_season %>%
   nps_theme2()
 ```
 
-```{r PeakFlow, echo=FALSE, message=FALSE, warning=FALSE}
-getpeakflow_days_season <- function(Daily){
-  peak <- Daily %>% 
-  mutate(wateryear_day = 
-           if_else(Day >= 275, Day - 274, Day + 92)) %>%
-  group_by(waterYear) %>% 
-  mutate(frequency = n()) %>% 
-  filter(frequency > 250) %>% 
-  ungroup() %>% 
-  select(Day, Year, waterYear, cfs, wateryear_day, Date) %>% 
-  mutate(month = (as.numeric(format(Date, "%m")))) %>% 
-  mutate(season = 
-           if_else(month >= 7 & month <= 9, "Monsoon", "Other")) %>% 
-  group_by(season, waterYear) %>% 
-  mutate(max_cfs = max(cfs)) %>% 
-  filter(cfs == max_cfs)
-  
-  peak$month <-  month.name[peak$month] %>% 
-    factor(levels=paste(month.name))
-  return(peak)
-}
-
-getpeakflow_days <- function(Daily){
-  Daily %>% 
-  mutate(wateryear_day = 
-           if_else(Day >= 275, Day - 274, Day + 92)) %>%
-  group_by(waterYear) %>% 
-  mutate(frequency = n()) %>% 
-  filter(frequency > 250) %>% 
-  ungroup() %>% 
-  select(Day, Year, waterYear, cfs, wateryear_day, Date) %>% 
-  group_by(waterYear) %>% 
-  mutate(max_day = max(cfs)) %>% 
-  filter(cfs == max_day)
-}
-
-sen <- function(..., weights = NULL) {
-  mblm::mblm(repeated = F, ...)
-}
-
-peakflow <- getpeakflow_days(Daily)
-peakflow_season <- getpeakflow_days_season(Daily)
-
-theil_sen <- senth(peakflow$waterYear, peakflow$wateryear_day, 
-                   site = site, 
-                   Xlab = "Water Year", 
-                   Ylab = "Days Since October 1st", 
-                   legend_loc = "topright") 
-
-peakflow_season %>% 
-  ggplot(aes(x=waterYear, y=wateryear_day, color=season)) +
-  geom_point() +
-  geom_smooth(method = sen, se = F) +
-  scale_color_brewer(palette = "Paired") +
-  labs(x="Water Year", y="Days since October 1st") +
-  nps_theme2() 
-
-peakflow_season %>% 
-  ggplot(aes(x=waterYear, y=wateryear_day, color=month)) +
-  geom_point() +
-  labs(x="Water Year", y="Days since October 1st") +
-  nps_theme2()
-
-peakflow_season %>% 
-  ggplot(aes(x=waterYear, y=cfs, color=season)) + 
-  geom_smooth(method = sen, se = F) +
-  labs(x="Water Year", y="Peak Flow (cfs)") +
-  scale_color_manual(values = c("black", "orange")) +
-  geom_point() +
-  nps_theme2()
-```
-
 ```{r Senth-Statistics, echo=FALSE}
 senth_stats <- matrix(c(theil_sen$p.value, theil_sen$slope, (theil_sen$slope)*100, theil_sen$intercept, theil_sen$LCL, theil_sen$UCL), 
                      ncol = 6, byrow = TRUE)
@@ -1361,7 +1275,7 @@ write.csv(Daily, file = paste0(futures_folder, "/", site, "Daily.csv"))
 #Info
 write.csv(INFO, file = paste0(futures_folder, "/", site, "Info.csv"))
 #Peak Flow
-write.csv(peakFlow, file = paste0(futures_folder, "/", site, "PeakFlow.csv"))
+write.csv(peakflow_season, file = paste0(futures_folder, "/", site, "PeakFlow.csv"))
 # Stat results
 write.csv(istat_results, file = paste0(futures_folder, "/", site, "istat_results.csv"))
 ```

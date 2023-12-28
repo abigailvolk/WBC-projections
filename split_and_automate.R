@@ -16,6 +16,7 @@ models <- unique(projections$model) # unique models for EGRET to loop through
 
 
 #Create directories for each model and put the daily csv into the directory
+
 # for (i in models){
 #   path <- file.path("EGRETdaily_future_runoff", i)
 #   dir.create(path) # create a directory
@@ -56,4 +57,4 @@ for (i in models) {
                     output_dir = file.path(working_path, i))
 }
 
-write.csv(projection_results, "v7_projectionresults.csv", row.names = F)
+write.csv(projection_results, "v8_projectionresults.csv", row.names = F)
