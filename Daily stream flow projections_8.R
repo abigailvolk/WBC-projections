@@ -5,7 +5,13 @@
 #4) convert future runoff to stream flow using calibration coefficients and stack into a data frame
 #5) plot future runoff
 
-#code by David Thoma National Park Service
+#code by David Thoma and Abigail Volk National Park Service
+#user must supply daily stream gage measurements in cfs
+#watershed area ws_area
+#historic modeled runoff
+#projected runoff, either as a watershed daily average, or from a point in the watershed
+#a and b hydrologic coefficients from calibration see "8_MikesdataWet Beaver V3_RoS_dt_gridmet_v3_test.xlsm"
+#initial conditions for quick and slow flow values
 
 library(xts)
 library(lubridate)
@@ -85,7 +91,7 @@ head(adj_hist_xts)
 #0.4335787 0.486576 0.9551752 0.006318712
 
 #calibration close-to-best values:# sa = 0.95; qa = 0.97; qb = 0.03
-parms <- as.numeric(c(0.92, 0.3, 0.6))#obtain these parameter values from 
+parms <- as.numeric(c(0.91, 0.38, 0.57))#obtain these parameter values from 
 #drainage calibration_IHACRES or Excel calibrated model using 2 flows, quick and slow  "3_MikesdataWet Beaver V3_RoS_dt_gridmet_v3.xlsm"
 sa <- parms[1]
 qa <- parms[2]
@@ -103,8 +109,8 @@ drainage <- 0        # initial condition
 #these initial values can be found in the Excel worksheet "initial flow conditions" in the
 #workbook called "5_MikesdataWet Beaver V3_RoS_dt_gridmet_v3.xlsm"
 #this can dramatically speed up spin-up to yield reasonable low flow results in low flow streams
-q3 <- 0.419406417             # initial condition for quick flow
-s3 <- 0.115015411          # initial condition for slow flow
+q3 <- 0.479358             # initial condition for quick flow
+s3 <- 0.0353353         # initial condition for slow flow
 
 for (i in 2:d){      # starting on second day into time series after initial conditions established
   # if (!is.na(coredata(runoff_xts[i]))) {
@@ -190,10 +196,10 @@ plot(hist_annual$total, type = "l")
 # n<-length(dfiles);n# used for loop counter when converting each runoff projection into calibrated daily flow
 
 #use a single projection file to pull dates that are common to all of the projections that can be used to build xts objects 
-
-#fut_ro <- read.csv(dfiles[1]);head(fut_ro)#projected runoff from water balance model using CMIP5 climate projections
-
 fut_ro1 <- read.csv("9505200_watershed_avg_water_balance_future.csv") #head(fut_ro)#projected runoff from water balance model using CMIP5 climate projections
+gcms<-unique(fut_ro1$GCM);gcms
+#drop "MIROC-ESM-CHEM.rcp85" because it doesn't have an associated RCP 4.5
+fut_ro1<-subset(fut_ro1, GCM !="MIROC-ESM-CHEM.rcp85")
 gcms<-unique(fut_ro1$GCM);gcms
 fut_ro_date<-subset(fut_ro1, GCM == gcms[1]);head(fut_ro_date);tail(fut_ro_date)
 #fut_date<-as.Date(fut_ro$time);fut_date#format needed for working with xts
@@ -437,7 +443,7 @@ plot
 
 head(annual_df)
 plot<-ggplot(data = annual_df) + geom_line(aes(x=yr, y = slow, color=rcp))+#scale_color_viridis(discrete=TRUE)+#scale_fill_gradientn(colours=c("black","gray"))+#, alpha=westus_3_hs
-  #facet_wrap(~gcm)+ ylab("Modeled base flow (mm)") + xlab("Year")+
+  facet_wrap(~gcm)+ ylab("Modeled base flow (mm)") + xlab("Year")+
   #this is the annual water right 11317.8 ac-ft/yr converted to mm annual runoff from 111 sq mi watershed
   #see Wet Beaver V3_RoS_dt_gridmet_v3.xlsm tab called runoff volume
   ggtitle("Wet Beaver Creek annual modeled base flow")+
@@ -459,7 +465,7 @@ plot<-ggplot(data = annual_df) + geom_boxplot(aes(x=period, y = slow, color=rcp)
   #geom_hline(yintercept=ann_right)+
   #this is the annual water right 11317.8 ac-ft/yr converted to mm annual runoff from 111 sq mi watershed
   #see Wet Beaver V3_RoS_dt_gridmet_v3.xlsm tab called runoff volume
-  ggtitle("Wet Beaver Creek annual modeled base flow")+
+  #ggtitle("Wet Beaver Creek annual modeled base flow")+
   #color=NAor lwd = 0.01
   xlab("")+ ylab("Modeled annual base flow (mm)")+
   nps_theme2()+
@@ -468,6 +474,8 @@ plot<-ggplot(data = annual_df) + geom_boxplot(aes(x=period, y = slow, color=rcp)
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank())#;plot+
 plot
+ggsave("annual base flow by period rcp.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 head(annual_df)
 p_levels<-c("historical","early","middle","late")
@@ -479,7 +487,7 @@ plot<-ggplot(data = annual_df) + geom_boxplot(aes(x=period, y = total, color=rcp
   #geom_hline(yintercept=ann_right)+
   #this is the annual water right 11317.8 ac-ft/yr converted to mm annual runoff from 111 sq mi watershed
   #see Wet Beaver V3_RoS_dt_gridmet_v3.xlsm tab called runoff volume
-  ggtitle("Wet Beaver Creek annual flow")+
+  #ggtitle("Wet Beaver Creek annual flow")+
   #color=NAor lwd = 0.01
   xlab("")+ ylab("Annual flow (mm)")+
   nps_theme2()+
@@ -488,6 +496,8 @@ plot<-ggplot(data = annual_df) + geom_boxplot(aes(x=period, y = total, color=rcp
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())#;plot+
 plot
+ggsave("annual flow by period rcp.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 ####################################################################################
 #count # years annual water right not met and # months water right not met
@@ -549,9 +559,9 @@ test2$wy <- ifelse(test2$mo>9,test2$yr+1, test2$yr);test2[1:12,]
 
 #add period to file for grouping by period normals
 test2$period<-ifelse(test2$yr<=2022,"historical",
-                     ifelse (test2$yr>=2023 & test2$yr<=2050,"early",
-                             ifelse (test2$yr>=2051 & test2$yr<=2070,"middle",
-                                     ifelse (test2$yr>=2071 & test2$yr<2100, "late","NA"))))
+                     ifelse (test2$yr>=2023 & test2$yr<=2050,"Early",
+                             ifelse (test2$yr>=2051 & test2$yr<=2070,"Middle",
+                                     ifelse (test2$yr>=2071 & test2$yr<2100, "Late","NA"))))
 head(test2)
 str(test2)
 
@@ -577,19 +587,21 @@ ann_ex$pct_fail<-(ann_ex$rights_lost/ann_ex$yrs)*100
 hist_ex<-subset(ann_ex, gcm == "Historical", select = pct_fail );hist_ex
 
 #drop MIROC-ESM-CHEM because it is missing rcp 4.5
+#done earlier in the code
 ann_ex<-subset(ann_ex, gcm !="MIROC-ESM-CHEM" & gcm!="Historical")
 head(ann_ex)
 #write.csv(ann_ex, "ann_ex.csv")
 
 
 #plot frequency of years water right not met as a percentage
-p_levels<-c("early","middle","late")
+p_levels<-c("Early","Middle","Late")
 plot <- ggplot(data = ann_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_col(position = "dodge")+ scale_x_discrete(limits = p_levels)+
   #geom_segment(aes(x=factor(period),xend=factor(period),yend=hist_ex))+
   geom_hline(yintercept=31, color="blue") +#31 is the % years fail historicall, not the water right
   #geom_segment(aes(x=factor(period),xend=factor(period),yend=hist_ex))+
   facet_wrap(vars(gcm))+
   ylab("Percent years fail to meet annual water right") +
+  xlab("")+
   #scale_y_continuous(labels = percent)+
   nps_theme2()+
   theme(axis.line = element_line(color='black'),
@@ -597,6 +609,50 @@ plot <- ggplot(data = ann_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_col(
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 plot
+ggsave("annual water right fail frequency facet gcm.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
+
+#plot frequency of years water right not met as a percentage
+p_levels<-c("Early","Middle","Late")
+plot <- ggplot(data = ann_ex, aes(x=period, y = pct_fail, fill=gcm)) + geom_col(position = "dodge")+ scale_x_discrete(limits = p_levels)+
+  #geom_segment(aes(x=factor(period),xend=factor(period),yend=hist_ex))+
+  geom_hline(yintercept=31, color="blue") +#31 is the % years fail historicall, not the water right
+  #geom_segment(aes(x=factor(period),xend=factor(period),yend=hist_ex))+
+  facet_wrap(vars(rcp))+
+  ylab("Percent years fail to meet annual water right") +
+  xlab("")+
+  #scale_y_continuous(labels = percent)+
+  nps_theme2()+
+  theme(axis.line = element_line(color='black'),
+        plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+plot
+ggsave("annual water right fail frequency facet rcp.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
+
+head(annual_df)
+p_levels<-c("Early","Middle","Late")
+plot<-ggplot(data = ann_ex) + geom_boxplot(aes(x=period, y = pct_fail, color=rcp))+ scale_x_discrete(limits = p_levels)+
+  #facet_wrap(~gcm)+ ylab("Modeled base flow (mm)") + xlab("Year")+
+  #geom_density(aes(x=value*10),fill="blue", alpha = 0.2)+
+  #scale_fill_manual(values=bp_colors)+
+  #scale_fill_brewer(type = "qual", palette = 1, direction = 1, aesthetics = "fill")+
+  #geom_hline(yintercept=ann_right)+
+  #this is the annual water right 11317.8 ac-ft/yr converted to mm annual runoff from 111 sq mi watershed
+  #see Wet Beaver V3_RoS_dt_gridmet_v3.xlsm tab called runoff volume
+  #ggtitle("Wet Beaver Creek annual modeled base flow")+
+  #color=NAor lwd = 0.01
+  geom_hline(yintercept=31, color="blue")+
+  xlab("")+ ylab("Percent years fail to meet annual water right")+
+  nps_theme2()+
+  theme(axis.line = element_line(color='black'),
+        plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())#;plot+
+plot
+ggsave("percent years fail to meet water right by rcp.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 head(ann_sum);unique(ann_sum$gcm)
 ann_sum_sub<-subset(ann_sum, gcm !="Historical" & gcm !="MIROC-ESM-CHEM");unique(ann_sum_sub$gcm)
@@ -607,6 +663,7 @@ plot <- ggplot(data = ann_sum_sub, aes(x=period, y = sumflow, fill=rcp)) + geom_
   #geom_segment(aes(x=factor(period),xend=factor(period),yend=hist_ex))+
   facet_wrap(vars(gcm))+
   ylab("Annual flow versus annual water right (mm)") +
+  xlab("")+
   #scale_y_continuous(labels = percent)+
   nps_theme2()+
   theme(axis.line = element_line(color='black'),
@@ -614,6 +671,8 @@ plot <- ggplot(data = ann_sum_sub, aes(x=period, y = sumflow, fill=rcp)) + geom_
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 plot
+ggsave("annual flow vs annual water right.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 meas_ann_fail_pct#hline y-intercept
 plot <- ggplot(data = ann_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_boxplot(position = "dodge")+ scale_x_discrete(limits = p_levels)+
@@ -629,6 +688,8 @@ plot <- ggplot(data = ann_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_boxp
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 plot
+ggsave("percent years fail to meet annual water right.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 #summarize annual water rights exceedance by rcp
 ann_ex_summary<- ann_ex %>% 
@@ -708,6 +769,8 @@ plot <- ggplot(data = month_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_bo
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 plot
+ggsave("monthly water right fail frequency.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 #plot frequency of years water right not met using historic MEASURED flow
 plot <- ggplot(data = month_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_boxplot(position = "dodge")+ scale_x_discrete(limits = p_levels)+
@@ -721,6 +784,8 @@ plot <- ggplot(data = month_ex, aes(x=period, y = pct_fail, fill=rcp)) + geom_bo
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 plot
+ggsave("percent years fail to meet monthly water right.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 head(test3)
 #plot monthly projected flows vs water right
@@ -736,7 +801,8 @@ plot <- ggplot(data = test3, aes(x=period, y = total, fill=rcp)) + geom_boxplot(
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 plot
-
+ggsave("monthly flow by period rcp.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 ############################################################################
 ############################################################################
@@ -795,6 +861,8 @@ plot<-ggplot(data = madf2, aes(x=yr, y = value, color=gcm)) + geom_line()+#scale
 #color=NAor lwd = 0.01
 nps_theme2()#;plot+
 plot
+ggsave("projected flow time series with ensemble avgs.pdf", device = cairo_pdf, dpi=300, width = 11, height = 9, units="in")
+dev.off()
 
 plot(ens_annual_45$yr, ens_annual_45$total, type = "l")
 

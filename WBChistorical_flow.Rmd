@@ -1,11 +1,3 @@
----
-output:
-  html_document: default
-params:
-  ID: ''
----
-
-------------------------------------------------------------------------
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -629,7 +621,8 @@ knitr::kable(flow_percentiles, format ="html", booktabs=TRUE, longtable = TRUE, 
 
 ## 2.2 Historical Flow Hydrograph
 
-The below hydrograph displays the current year vs. the mean, 25th, and 75th percentiles from the entire record.
+The below hydrograph displays the the mean and median from the entire record.
+
 ```{r NPS-theme, echo=FALSE, message=FALSE, warning=FALSE}
 windowsFonts("Frutiger LT Std 55 Roman" = 
                windowsFont("Frutiger LT Std 55 Roman"))
@@ -668,11 +661,9 @@ historical_stats %>% ggplot(aes(x=Day)) +
   nps_theme2() +
   theme(legend.title=element_blank()) +
   scale_color_manual(values = c("Mean" = "orange", "Median" = "black"))
-
-
 ```
 
-Annual hydrographs (annual discharge sum) for both the calendar year and watre year.
+Annual hydrographs (annual discharge sum) for both the calendar year and water year.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 annual_calendar <- Daily %>% 
@@ -728,9 +719,6 @@ annual_wateryear %>%
   labs(x="Water Year", 
        y="Discharge Sum (mm)") +
   nps_theme2()
-
-
-
 ```
 
 ## 2.3 Flow Duration Curves
@@ -861,7 +849,6 @@ istat_results %>%
   labs(x="Discharge statistic", y="Slope (cfs/year)") +
   nps_theme2() +
   scale_y_continuous(breaks = seq(-0.02, 0, by = 0.005))
-
 ```
 
 ## 3.4 Standard Deviation Plot of the Daily Mean (Log)
@@ -902,13 +889,14 @@ A table with the p-values less than 0.1 is also provided below the Quantile-Kend
 ```{r Quantile-Kendall-Results, echo=FALSE, message=FALSE, warning=FALSE}
 quantile_results <- plotQuantileKendall(eList, legendSize = 0.5, paStart = 10, paLong = 12)
 quantile_results$`Order Statistic` <- c(1:365)
-quantile_results <- quantile_results %>%  select(`Order Statistic`, pValueAdj, slopePct) %>% filter(pValueAdj <= 0.1)
+quantile_results <- quantile_results %>%
+  select(`Order Statistic`, pValueAdj, slopePct) %>% 
+  filter(pValueAdj <= 0.1)
 quantile_results$posSlope <- quantile_results$slopePct > 0
+
 record_length <- yearEnd - yearStart
 rows <- dim(quantile_results)[1]
 columns <- dim(quantile_results)[2]
-
-
 
 if (rows > 0) {
   quantile_results$`Slope Percent Change over Record Length`=NA
@@ -1143,8 +1131,6 @@ peakflow_season %>%
   scale_color_manual(values = c("black", "orange")) +
   geom_point() +
   nps_theme2()
-
-
 ```
 
 ```{r Senth-Statistics, echo=FALSE}
@@ -1157,7 +1143,7 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
   kable_styling(latex_options=c("hold_position", "repeat_header"), full_width = F)
 ```
 
-```{r}
+```{r Senth-Output}
 get_model_info <- function(data, response_var, predictor_var) {  
     model <- mblm::mblm(as.formula(paste(response_var, "~", predictor_var)), data, repeated = FALSE)  
     corout <- cor.test(data[[predictor_var]], data[[response_var]],                     
@@ -1170,23 +1156,22 @@ get_model_info <- function(data, response_var, predictor_var) {
 } 
 
 seasons <- c("Monsoon", "Other")
-models <- list()
+regressions <- list()
 for (i in seq_along(seasons)) {  
   season_data <- peakflow_season %>% filter(season == seasons[i])  
   day_info <- get_model_info(season_data, "wateryear_day", "waterYear") 
   day_info$discharge_stat <- paste(seasons[i], ",", "wateryear_day", "~", "waterYear")
   mag_info <- get_model_info(season_data, "cfs", "waterYear")
   mag_info$discharge_stat <- paste(seasons[i], ",", "cfs", "~", "waterYear")
-  models[[i * 2 - 1]] <- day_info   
-  models[[i * 2]] <- mag_info
+  regressions[[i * 2 - 1]] <- day_info   
+  regressions[[i * 2]] <- mag_info
 }
 
-models <- reduce(models, bind_rows) %>% 
+regressions <- reduce(regressions, bind_rows) %>% 
   relocate(model, discharge_stat, slope, slopepct_mag, 
            slopepct_mag_interp, p_value)
 istat_results <- istat_results %>% select(!`Discharge Statistic Name`) %>% 
-  rbind(., models)
-
+  rbind(., regressions)
 ```
 
 ## 5.2 Ordinary Least Squares Regression 
@@ -1248,38 +1233,30 @@ Daily %>% ggplot(aes(x=cfs, y = ..count../sum(..count..)))+
   scale_y_continuous(labels = percent_format(accuracy = 0.01)) +
   geom_vline(xintercept = median(Daily$cfs, na.rm = T), color = "red") +
   theme_bw() + 
-  labs(x="Discharge (cfs)", y= "Density (percent)", title=paste0("Historical Discharge Distribution for ", siteName)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.title = element_text(size=14),
-        legend.text = element_text(size=10),
-        legend.title.align=0.5) 
+  labs(x="Discharge (cfs)", y= "Density (percent)") +
+  nps_theme2()
 Daily %>% ggplot(aes(cfs))+
   stat_ecdf()+
   scale_x_log10()+
   geom_vline(xintercept = median(Daily$cfs, na.rm = T), color = "red")+
   theme_bw() + 
-  labs(x="Discharge (cfs)", y= "Probability", title=paste0("Empirical Cumulative Distribution Function for \n", siteName)) +
-  theme(plot.title = element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.title = element_text(size=14),
-        legend.text = element_text(size=10),
-        legend.title.align=0.5) 
-
+  labs(x="Discharge (cfs)", y= "Probability") +
+  nps_theme2()
 ```
 
 ## 7.2 Saving Data from this Rmd as CSVs
 
 ```{r save-csvs, include=FALSE}
-# path <- file.path("C:/Users/avolk/Code_Output", site)
-# #Daily
-# write.csv(Daily, file = paste0(path, "/", site, "Daily.csv"))
-# #Info
-# write.csv(INFO, file = paste0(path, "/", site, "Info.csv"))
-# #Peak Flow
-# write.csv(peakFlow, file = paste0(path, "/", site, "PeakFlow.csv"))
+path <- "EGRETdaily_historical"
+dir.create(path)
+#Daily
+write.csv(Daily, file = paste0(path, "/", site, "Daily.csv"))
+#Info
+write.csv(INFO, file = paste0(path, "/", site, "Info.csv"))
+#Peak Flow
+write.csv(peakflow_season, file = paste0(path, "/", site, "PeakFlow.csv"))
+# Stat results
+write.csv(istat_results, file = paste0(path, "/", site, "istat_results.csv"))
 ```
 
 ------------------------------------------------------------------------
