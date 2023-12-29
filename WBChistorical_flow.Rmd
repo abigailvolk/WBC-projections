@@ -1,6 +1,5 @@
 ---
 output:
-  pdf_document: default
   html_document: default
 ---
 
@@ -643,7 +642,14 @@ nps_theme2 <- function(base_size = fontsize,
     ) 
 } #in each ggplot figure where you want nps fonts add this to your ggplot code " + nps_theme2()"
 
-
+save_figure <- function(figure_name, save_path = ".") {
+  ggsave(figure_name, 
+       device = cairo_pdf,
+       path = save_path,
+       dpi=300, 
+       width = 12, height = 9, units="in")
+}
+save_path <- "WBChistorical_flow_output"
 ```
 
 ```{r Historical-Hydrograph, echo=FALSE, message=FALSE, warning=FALSE}
@@ -666,6 +672,7 @@ historical_stats %>% ggplot(aes(x=Day)) +
   nps_theme2() +
   theme(legend.title=element_blank()) +
   scale_color_manual(values = c("Mean" = "orange", "Median" = "black"))
+save_figure("hydrograph_ordinaldays.pdf", save_path)
 ```
 
 Annual hydrographs (annual discharge sum) for both the calendar year and water year.
@@ -697,6 +704,7 @@ annual_calendar %>%
   labs(x="Calendar Year", 
        y="Discharge Mean (cfs)") +
   nps_theme2()
+save_figure("hydrograph_calendaryr_mean.pdf", save_path)
 
 annual_calendar %>% 
   ggplot(aes(x=Year, y = sum_mm)) +
@@ -706,6 +714,7 @@ annual_calendar %>%
   labs(x="Calendar Year", 
        y="Discharge Sum (mm)") +
   nps_theme2()
+save_figure("hydrograph_calendaryr_sum.pdf", save_path)
 
 annual_wateryear %>% 
   ggplot(aes(x=waterYear, y = mean_cfs)) +
@@ -715,6 +724,7 @@ annual_wateryear %>%
   labs(x="Water Year", 
        y="Discharge Mean (cfs)") +
   nps_theme2()
+save_figure("hydrograph_wateryr_mean.pdf", save_path)
 
 annual_wateryear %>% 
   ggplot(aes(x=waterYear, y = sum_mm)) +
@@ -724,6 +734,7 @@ annual_wateryear %>%
   labs(x="Water Year", 
        y="Discharge Sum (mm)") +
   nps_theme2()
+save_figure("hydrograph_wateryr_sum.pdf", save_path)
 ```
 
 ## 2.3 Flow Duration Curves
@@ -853,7 +864,8 @@ istat_results %>%
   coord_flip() +
   labs(x="Discharge statistic", y="Slope (cfs/year)") +
   nps_theme2() +
-  scale_y_continuous(breaks = seq(-0.02, 0, by = 0.005))
+  scale_y_continuous(limits = c(-0.022, 0.011))
+save_figure("istats_histbarchart_slope.pdf", save_path)
 ```
 
 ## 3.4 Standard Deviation Plot of the Daily Mean (Log)
@@ -1122,12 +1134,14 @@ peakflow_season %>%
   scale_color_brewer(palette = "Paired") +
   labs(x="Water Year", y="Days since October 1st") +
   nps_theme2() 
+save_figure("peakflow_day_hist.pdf", save_path)
 
 peakflow_season %>% 
   ggplot(aes(x=waterYear, y=wateryear_day, color=month)) +
   geom_point() +
   labs(x="Water Year", y="Days since October 1st") +
   nps_theme2()
+save_figure("peakflow_daymonth_hist.pdf", save_path)
 
 peakflow_season %>% 
   ggplot(aes(x=waterYear, y=cfs, color=season)) + 
@@ -1136,6 +1150,7 @@ peakflow_season %>%
   scale_color_manual(values = c("black", "orange")) +
   geom_point() +
   nps_theme2()
+save_figure("peakflow_mag_hist.pdf", save_path)
 ```
 
 ```{r Senth-Statistics, echo=FALSE}
@@ -1148,7 +1163,7 @@ knitr::kable(senth_stats, booktabs=TRUE, format ="html", longtable = TRUE, capti
   kable_styling(latex_options=c("hold_position", "repeat_header"), full_width = F)
 ```
 
-```{r Senth-Output}
+```{r Senth-Output, echo=FALSE, message=FALSE, warning=FALSE}
 get_model_info <- function(data, response_var, predictor_var) {  
     model <- mblm::mblm(as.formula(paste(response_var, "~", predictor_var)), data, repeated = FALSE)  
     corout <- cor.test(data[[predictor_var]], data[[response_var]],                     

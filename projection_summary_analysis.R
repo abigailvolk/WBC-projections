@@ -17,7 +17,7 @@ nps_theme2 <- function(base_size = fontsize, base_family=nps_font) {
 
 #### Functions for Saving Figures ####
 save_path <- file.path("projection_summary_analysis_output")
-save_figure <- function(figure_name, save_path) {
+save_figure <- function(figure_name, save_path = ".") {
   ggsave(figure_name, 
        device = cairo_pdf,
        path = save_path,
@@ -70,18 +70,20 @@ projection_peak_flow <- left_join(projection_peak_flow, regressions_table,
 #### Visualize the Slopes ####
 ##### Istats trend slopes
 
-# change in CFS PER YEAR
-# projection_istats %>% 
-#   filter(model != "Historical") %>% 
-#   ggplot(aes(x=`Discharge Statistic Name`, y = slope, fill=rcp)) + 
-#   geom_boxplot(position = "dodge") +
-#   geom_hline(yintercept = 0) +
-#   labs(x= "Discharge Statistic",
-#        y = "Theil-Sen Trend Slope: cfs/year (2023-2100)") +
-#   coord_flip() +
-#   theme_bw() +
-#   scale_fill_manual(values = c("orange", "red")) +
-#   nps_theme2()
+#change in CFS PER YEAR
+projection_istats %>%
+  filter(model != "Historical") %>%
+  ggplot(aes(x=`Discharge Statistic Name`, y = slope, fill=rcp)) +
+  geom_boxplot(position = "dodge") +
+  geom_hline(yintercept = 0) +
+  labs(x= "Discharge Statistic",
+       y = "Cfs/year (2023-2100)") +
+  coord_flip() +
+  theme_bw() +
+  scale_fill_manual(values = c("orange", "red")) +
+  nps_theme2() +
+  scale_y_continuous(limits = c(-0.022, 0.011))
+save_figure("istats_boxplots_slope.pdf", save_path)
 
 # or CHANGE OVER RECORD 
 projection_istats %>% 
@@ -95,7 +97,7 @@ projection_istats %>%
   theme_bw() +
   scale_fill_manual(values = c("orange", "red")) +
   nps_theme2()
-save_figure("istats_boxplots.pdf", save_path)
+save_figure("istats_boxplots_total.pdf", save_path)
 
 # # or % change per year
 # projection_istats %>% 
