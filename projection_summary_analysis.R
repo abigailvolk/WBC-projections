@@ -4,6 +4,8 @@
 packages <-  c("tidyverse") #create a list of all required packages
 lapply(packages, library, character.only = T)
 
+
+#### Fonts ####
 windowsFonts("Frutiger LT Std 55 Roman" = windowsFont("Frutiger LT Std 55 Roman"))
 fontsize=20
 nps_font <- "Frutiger LT Std 55 Roman" ###NPS fonts
@@ -13,7 +15,17 @@ nps_theme2 <- function(base_size = fontsize, base_family=nps_font) {
           complete = TRUE
     )}
 
+#### Functions for Saving Figures ####
 save_path <- file.path("projection_summary_analysis_output")
+save_figure <- function(figure_name, save_path) {
+  ggsave(figure_name, 
+       device = cairo_pdf,
+       path = save_path,
+       dpi=300, 
+       width = 12, height = 9, units="in")
+}
+
+
 #### Read in and Wrangle Projection Results Table ####
 projection_results <- read_csv("v8_EGRETprojectionresults.csv") %>% 
   separate(model, into = c("model", "rcp"), sep = "_")
@@ -28,7 +40,7 @@ projection_istats <- projection_results %>%
   filter(!grepl("peakflow", discharge_stat) & !grepl("waterYear", discharge_stat)) %>% 
   mutate(cfs_change_over_record = slope*77) # find change over the record
 
-# Join the istats and regressions to the table
+# Join the istats and regressions names to the table
 istat_table <- matrix(c("1", "Minimum 1-day", 
                         "2", "Minimum 7-day mean", 
                         "3", "Minimum 30-day mean",
@@ -83,7 +95,7 @@ projection_istats %>%
   theme_bw() +
   scale_fill_manual(values = c("orange", "red")) +
   nps_theme2()
-
+save_figure("istats_boxplots.pdf", save_path)
 
 # # or % change per year
 # projection_istats %>% 
@@ -111,9 +123,7 @@ projection_peak_flow %>%
   theme_bw() +
   scale_fill_manual(values = c("orange", "red")) +
   nps_theme2()
-ggsave("Figure 3-5 production adjrsqs_reclass2.pdf", 
-       device = cairo_pdf, dpi=300, 
-       width = 12, height = 9, units="in")
+save_figure("peakflow_day.pdf", save_path)
 
 # Boxplot: Change in magnitude of peak flow over record by season (cfs/yr*77)
 projection_peak_flow %>% 
@@ -131,7 +141,7 @@ projection_peak_flow %>%
 ggsave("Figure 3-5 production adjrsqs_reclass2.pdf", 
        device = cairo_pdf, dpi=300, 
        width = 12, height = 9, units="in")
-
+save_figure("peakflow_magnitude.pdf", save_path)
 
 
 
