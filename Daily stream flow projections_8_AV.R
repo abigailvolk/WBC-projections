@@ -867,31 +867,77 @@ dev.off()
 plot(ens_annual_45$yr, ens_annual_45$total, type = "l")
 
 
-#### Abby Code ####
+#### Abby Code ####------------------------------------------------------
 
-total_85 <- daily_df %>% filter(rcp == "85" | rcp == "Hist") %>% ggplot() +
-  geom_line(aes(x=date, y=total, color = gcm)) +ylim(0,30) + 
-  xlim(as.Date.character(c("1978-12-31", "2101-01-01"))) +
+library(tidyverse)
+library(lubridate)
+library(EGRET)
+
+
+
+#### Wrangle measured and projected data together ####
+
+# format projections so that they can be merged with measured data from NWIS
+projections <- daily_df %>% 
+  mutate(daily_cfs = total*35.31467*(287.4887/86.4),
+         mo = as.numeric(mo),
+         yr = as.numeric(yr),
+         waterYear = if_else(mo >= 10, yr + 1, yr),
+         leap = leap_year(date),
+         day = as.numeric(format(date, "%j")),
+         day = if_else(leap == F & day >= 60, day + 1, day)) %>%
+  select(date, day, daily_cfs, waterYear, yr, mo, gcm, rcp) %>% 
+  as_tibble()
+
+# pull measured data from NWIS and format
+Daily <- readNWISDaily("09505200","00060", "", "2022-10-01")
+Daily <- Daily %>% 
+  mutate(daily_cfs = Q*35.314666212661,
+         yr = as.numeric(format(Date, "%Y")),
+         mo = as.numeric(format(Date, "%m")),
+         gcm = "Historical",
+         rcp = "Measured") %>% 
+  rename(date = Date,
+         day = Day) %>% 
+  select(date, day, daily_cfs, waterYear, yr, mo, gcm, rcp) %>% 
+  as_tibble()
+
+# Bind projections with measured, filter out historical modelled.
+daily_proj_meas <- bind_rows(Daily, projections) %>% 
+  filter(rcp != "Hist")
+
+
+
+#### Look at daily measured and projected cfs on one figure ####
+
+total_85 <- daily_proj_meas %>% 
+  filter(rcp == "85" | rcp == "Measured") %>% ggplot() +
+  geom_line(aes(x=date, y=daily_cfs, color = gcm)) + 
   labs(title = "RCP8.5") +
   theme_bw()
 
-total_45 <- daily_df %>% filter(rcp == "45" | rcp == "Hist") %>% ggplot() +
-  geom_line(aes(x=date, y=total, color = gcm)) +ylim(0,30)+ 
-  xlim(as.Date.character(c("1978-12-31", "2101-01-01"))) +
+total_45 <- daily_proj_meas %>% 
+  filter(rcp == "45" | rcp == "Measured") %>% ggplot() +
+  geom_line(aes(x=date, y=daily_cfs, color = gcm)) + 
   labs(title = "RCP4.5") +
   theme_bw()
-
+ 
 gridExtra::grid.arrange(total_45, total_85, ncol=2)
 
 
+
+#### quick and slow figures using ***MODELLED*** historical flow in mm ####
+
 slow_85 <- daily_df %>% filter(rcp == "85" | rcp == "Hist") %>% ggplot() +
-  geom_line(aes(x=date, y=slow, color = gcm)) +ylim(0.02,0.035) + 
+  geom_line(aes(x=date, y=slow, color = gcm)) +
+  #ylim(0.02,0.035) + 
   xlim(as.Date.character(c("1978-12-31", "2101-01-01"))) +
   labs(title = "RCP8.5") +
   theme_bw()
 
 slow_45 <- daily_df %>% filter(rcp == "45" | rcp == "Hist") %>% ggplot() +
-  geom_line(aes(x=date, y=slow, color = gcm)) +ylim(0.02,0.035)+ 
+  geom_line(aes(x=date, y=slow, color = gcm)) +
+  #ylim(0.02,0.035)+ 
   xlim(as.Date.character(c("1978-12-31", "2101-01-01"))) +
   labs(title = "RCP4.5") +
   theme_bw()
@@ -923,8 +969,8 @@ write.csv(daily, file = "daily.csv", row.names = F)
 daily <- read_csv("daily.csv")
 
 
-##### Abby Functions Below ####
 
+##### Functions for Quantile Grid Plots ####
 
 # Function wrangle_projections
 wrangle_projections <- function(dataframe, summary_var, ...) {
@@ -950,7 +996,7 @@ wrangle_projections <- function(dataframe, summary_var, ...) {
 # Function graph_timeseries_quantile
 graph_timeseries_quantile <- function(ts_list,
                                       time_step,
-                                      hist_rcp_name = "Hist",
+                                      hist_rcp_name = "Measured",
                                       rcp = "45",
                                       ylow = Q05,
                                       yhigh = Q95,
@@ -1059,7 +1105,7 @@ graph_timeseries_quantile <- function(ts_list,
   # Uses gridExtra to automate the display of the graph generated from above func
 timeseries_quantile_rcp_grid <- function(ts_list,
                                          time_step,
-                                         hist_rcp_name = "Hist",
+                                         hist_rcp_name = "Measured",
                                          ylow = Q05,
                                          yhigh = Q95,
                                          xaxis = date,
@@ -1094,13 +1140,48 @@ timeseries_quantile_rcp_grid <- function(ts_list,
 }
 
 
-#### Apply Abby Functions for figures :) ####
 
-wrangled_daily <- wrangle_projections(daily, daily_cfs, rcp, date)
-wrangled_monthly <- wrangle_projections(daily, daily_cfs, rcp, yr_mo)
-wrangled_annual <- wrangle_projections(daily, daily_cfs, rcp, yr)
+#### Apply Above Functions for RCP Quantiles figures :) ####
 
-graph_timeseries_quantile(wrangled_annual, time_step = "Annual", xaxis = yr, nps = F, proj_col = "pink")
+wrangled_annual <- wrangle_projections(daily_proj_meas, daily_cfs, rcp, yr)
+graph_timeseries_quantile(wrangled_annual, time_step = "Annual", 
+                          xaxis = yr, nps = F, proj_col = "pink")
 timeseries_quantile_rcp_grid(wrangled_annual, ysmooth = mean, ylow = Q05, yhigh = Q95,
                              time_step = "Annual", xaxis = yr, nps = T)
-graph_timeseries_quantile(wrangled_annual, rcp = "85", time_step = "Annual", xaxis = yr, nps = F, proj_col = "pink")
+
+
+
+#### Early, middle, and late projected hydrograph smooths ####
+
+# Add time period
+daily_proj_meas <-  daily_proj_meas %>%
+  mutate(time_period = case_when(yr <= 2022 ~ 'Historical',
+                                 yr > 2022 & yr <= 2050 ~ 'Early',
+                                 yr > 2050 & yr <= 2070 ~ 'Middle',
+                                 yr > 2070 ~ 'Late'))
+
+# Get the mean and median of the daily cfs for each time period
+rcp_day_summary <- daily_proj_meas %>% 
+  group_by(day, rcp, time_period) %>% 
+  dplyr::summarize(mean = mean(daily_cfs),
+            median = median(daily_cfs))
+# Create a separate futures DF with the time periods as factors 
+rcp_day_futures <- rcp_day_summary %>% 
+  filter(rcp != "Measured") 
+rcp_day_futures$time_period <- factor(as.factor(rcp_day_futures$time_period),
+                                      levels = c("Early", "Middle", "Late"))
+# Create a separate historical measured data frame
+rcp_day_hist <- rcp_day_summary %>% 
+  filter(rcp == "Measured") %>% 
+  select(!time_period)
+# Plot the results from wrangling done above
+ggplot(rcp_day_hist, mapping = aes(x = day, y=mean, color=rcp)) +
+  geom_smooth(color = "black", se=F, span=0.2) +
+  facet_wrap(~time_period, ncol = 1) +
+  geom_smooth(rcp_day_futures, mapping = aes(x = day, y=mean, color=rcp), se=F, span=0.2) +
+  theme_bw() + 
+  labs(x="Days Since January 1st", y="Discharge (cfs)") +
+  theme(legend.title=element_blank()) +
+  scale_color_manual(values = c("orange","red")) +
+  nps_theme2() 
+
