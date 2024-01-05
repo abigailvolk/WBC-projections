@@ -28,16 +28,24 @@ library("stringr")
 library(openxlsx)
 library(gridExtra)
 
+#### Fonts ####
 windowsFonts("Frutiger LT Std 55 Roman" = windowsFont("Frutiger LT Std 55 Roman"))
-# you can repeat the above for new font names using the font names you saw in the system_fonts() call above
 fontsize=20
-nps_font <- "Frutiger LT Std 55 Roman"
+nps_font <- "Frutiger LT Std 55 Roman" ###NPS fonts
 nps_theme2 <- function(base_size = fontsize, base_family=nps_font) {
-  theme_bw(base_size = base_size, base_family = nps_font) %+replace%
+  theme_classic(base_size = base_size, base_family = nps_font) %+replace%
     theme(axis.text.x = element_text(family=nps_font, size = base_size * 0.8),
           complete = TRUE
-    )} #in each ggplot figure where you want nps fonts add this to your ggplot code " + nps_theme2()"
+    )}
 
+#### Functions for Saving Figures ####
+save_figure <- function(figure_name, save_path = ".") {
+  ggsave(figure_name, 
+         device = cairo_pdf,
+         path = save_path,
+         dpi=300, 
+         width = 12, height = 9, units="in")
+}
 
 here()
 #setwd(here("daily future runoff"))

@@ -10,7 +10,7 @@ windowsFonts("Frutiger LT Std 55 Roman" = windowsFont("Frutiger LT Std 55 Roman"
 fontsize=20
 nps_font <- "Frutiger LT Std 55 Roman" ###NPS fonts
 nps_theme2 <- function(base_size = fontsize, base_family=nps_font) {
-  theme_bw(base_size = base_size, base_family = nps_font) %+replace%
+  theme_classic(base_size = base_size, base_family = nps_font) %+replace%
     theme(axis.text.x = element_text(family=nps_font, size = base_size * 0.8),
           complete = TRUE
     )}
@@ -34,11 +34,11 @@ projection_results <- read_csv("v8_EGRETprojectionresults.csv") %>%
 projection_peak_flow <- projection_results %>% 
   filter(grepl("peakflow", discharge_stat) | 
            grepl("waterYear", discharge_stat))  %>% 
-  mutate(change_over_record = slope*77) # find change over the record
+  mutate(change_over_record = slope*76) # find change over the record
 
 projection_istats <- projection_results %>% 
   filter(!grepl("peakflow", discharge_stat) & !grepl("waterYear", discharge_stat)) %>% 
-  mutate(cfs_change_over_record = slope*77) # find change over the record
+  mutate(cfs_change_over_record = slope*76) # find change over the record
 
 # Join the istats and regressions names to the table
 istat_table <- matrix(c("1", "Minimum 1-day", 
